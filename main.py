@@ -65,7 +65,7 @@ class DrinkPartyTracker:
         
         # Grid Frame for Buttons
         grid_frame = tk.Frame(self.root, bg='#2A2B2A')
-        grid_frame.pack(pady=150)
+        grid_frame.pack(pady=100)
         
         # Button style
         btn_style = {
@@ -79,15 +79,15 @@ class DrinkPartyTracker:
         tk.Button(grid_frame, 
                  text="Getränk",
                  command=self.add_drink,
-                 bg='#0E9594',
-                 fg='white',
+                 bg='#9B9B93',
+                 fg='#2A2B2A',
                  **btn_style).grid(row=0, column=0, padx=5, pady=5)
         
         # View/Print Tabs Button
         tk.Button(grid_frame,
                  text="Rechnung",
                  command=self.show_tabs,
-                 bg='#437F97',
+                 bg='#9B9B93',
                  fg='#2A2B2A',
                  **btn_style).grid(row=0, column=1, padx=5, pady=5)
         
@@ -95,17 +95,17 @@ class DrinkPartyTracker:
         tk.Button(grid_frame,
                  text="Inventar",
                  command=self.show_restock_dialog,
-                 bg='#00FFFF',
+                 bg='#9B9B93',
                  fg='#2A2B2A',
-                 **btn_style).grid(row=1, column=0, padx=5, pady=5)
+                 **btn_style).grid(row=0, column=2, padx=5, pady=5)
         
         # Reset Button with Password
         tk.Button(grid_frame,
                  text="Reset",
                  command=self.password_reset_dialog,
-                 bg='#FD151B',
-                 fg='white',
-                 **btn_style).grid(row=1, column=1, padx=5, pady=5)
+                 bg='#9B9B93',
+                 fg='#2A2B2A',
+                 **btn_style).grid(row=2, column=1, padx=5, pady=(100,0))
 
     def show_restock_dialog(self):
         dialog = tk.Toplevel(self.root)
