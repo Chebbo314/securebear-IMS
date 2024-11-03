@@ -1,8 +1,9 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, ttk
 from datetime import datetime
 import json
 import os
+import hashlib
 
 class DrinkPartyTracker:
     def __init__(self, root):
@@ -10,20 +11,21 @@ class DrinkPartyTracker:
         self.root.title("Securebear-IMS")
         self.root.configure(bg='#2A2B2A')
         
+        # Admin password hash (default: "admin123")
+        self.admin_pass_hash = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9"
+        
         # Load or create drink inventory and people tabs
         self.load_data()
         
         self.create_gui()
         
     def load_data(self):
-        # Load saved data or create new if doesn't exist
         try:
             with open('party_data.json', 'r') as f:
                 data = json.load(f)
                 self.inventory = data['inventory']
                 self.people_tabs = data['people']
         except:
-            # Default inventory with prices
             self.inventory = {
                 "🍺 Bier": {"price": 2.00, "stock": 20},
                 "🍷 Schnaps": {"price": 2.00, "stock": 12},
@@ -61,59 +63,182 @@ class DrinkPartyTracker:
         self.stock_text.pack(pady=5)
         self.update_stock_display()
         
-        # Buttons Frame
-        btn_frame = tk.Frame(self.root, bg='#2A2B2A')
-        btn_frame.pack(pady=10)
+        # Grid Frame for Buttons
+        grid_frame = tk.Frame(self.root, bg='#2A2B2A')
+        grid_frame.pack(pady=150)
         
         # Button style
         btn_style = {
             'font': ('Arial', 16, 'bold'),
-            'width': 15,
+            'width': 10,
             'height': 2,
             'border': 5
         }
         
-        # Add Drink to Someone's Tab
-        tk.Button(btn_frame, 
-                 text="🍺",
+        # Add Drink Button
+        tk.Button(grid_frame, 
+                 text="Getränk",
                  command=self.add_drink,
-                 bg='#0E9594',  # Deep pink
+                 bg='#0E9594',
                  fg='white',
-                 **btn_style).pack(pady=5)
+                 **btn_style).grid(row=0, column=0, padx=5, pady=5)
         
-        # View/Print Tabs
-        tk.Button(btn_frame,
-                 text="💰",
+        # View/Print Tabs Button
+        tk.Button(grid_frame,
+                 text="Rechnung",
                  command=self.show_tabs,
-                 bg='#437F97',  # Bright green
+                 bg='#437F97',
                  fg='#2A2B2A',
-                 **btn_style).pack(pady=5)
+                 **btn_style).grid(row=0, column=1, padx=5, pady=5)
         
         # Restock Button
-        tk.Button(btn_frame,
-                 text="Auffüllen📦",
-                 command=self.restock,
-                 bg='#00FFFF',  # Cyan
+        tk.Button(grid_frame,
+                 text="Inventar",
+                 command=self.show_restock_dialog,
+                 bg='#00FFFF',
                  fg='#2A2B2A',
-                 **btn_style).pack(pady=5)
+                 **btn_style).grid(row=1, column=0, padx=5, pady=5)
         
-        # Reset All Button
-        tk.Button(btn_frame,
-                 text="RESET ⚠️",
-                 command=self.reset_all,
-                 bg='#FD151B',  # Orange-red
+        # Reset Button with Password
+        tk.Button(grid_frame,
+                 text="Reset",
+                 command=self.password_reset_dialog,
+                 bg='#FD151B',
                  fg='white',
-                 **btn_style).pack(pady=(150,5))
+                 **btn_style).grid(row=1, column=1, padx=5, pady=5)
+
+    def show_restock_dialog(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("RESTOCK INVENTORY")
+        dialog.configure(bg='#1A1A1A')
+        dialog.geometry("400x500")
+        
+        # Create main frame
+        main_frame = tk.Frame(dialog, bg='#1A1A1A')
+        main_frame.pack(padx=20, pady=20, fill='both', expand=True)
+        
+        # Title
+        tk.Label(main_frame,
+                text="RESTOCK ITEMS",
+                font=('Arial', 16, 'bold'),
+                bg='#1A1A1A',
+                fg='white').pack(pady=(0, 20))
+        
+        # Create frame for entries
+        entries_frame = tk.Frame(main_frame, bg='#1A1A1A')
+        entries_frame.pack(fill='both', expand=True)
+        
+        # Dictionary to store entry widgets
+        self.restock_entries = {}
+        
+        # Create label and entry for each drink
+        for i, (drink, info) in enumerate(self.inventory.items()):
+            # Frame for each drink row
+            drink_frame = tk.Frame(entries_frame, bg='#1A1A1A')
+            drink_frame.pack(fill='x', pady=5)
+            
+            # Drink name label
+            tk.Label(drink_frame,
+                    text=f"{drink} (Current: {info['stock']})",
+                    font=('Arial', 12),
+                    bg='#1A1A1A',
+                    fg='white').pack(side='left', padx=(0, 10))
+            
+            # Entry for quantity
+            entry = ttk.Entry(drink_frame, width=10, font=('Arial', 12))
+            entry.pack(side='right', padx=5)
+            entry.insert(0, "0")  # Default value
+            
+            self.restock_entries[drink] = entry
+            
+        # Buttons frame
+        buttons_frame = tk.Frame(main_frame, bg='#1A1A1A')
+        buttons_frame.pack(pady=20)
+        
+        # Apply button
+        tk.Button(buttons_frame,
+                 text="RESTOCK",
+                 command=lambda: self.apply_restock(dialog),
+                 bg='#4CAF50',
+                 fg='white',
+                 font=('Arial', 12, 'bold')).pack(side='left', padx=5)
+                 
+        # Cancel button
+        tk.Button(buttons_frame,
+                 text="CANCEL",
+                 command=dialog.destroy,
+                 bg='#FD151B',
+                 fg='white',
+                 font=('Arial', 12, 'bold')).pack(side='left', padx=5)
+
+    def apply_restock(self, dialog):
+        try:
+            changes_made = False
+            restock_summary = []
+            
+            for drink, entry in self.restock_entries.items():
+                try:
+                    amount = int(entry.get())
+                    if amount > 0:
+                        self.inventory[drink]['stock'] += amount
+                        changes_made = True
+                        restock_summary.append(f"{drink}: +{amount}")
+                except ValueError:
+                    continue  # Skip invalid entries
+            
+            if changes_made:
+                self.save_data()
+                self.update_stock_display()
+                dialog.destroy()
+                
+                # Show summary
+                summary = "\n".join(restock_summary)
+                messagebox.showinfo("RESTOCKED!", f"Added to inventory:\n\n{summary}")
+            else:
+                messagebox.showwarning("No Changes", "No valid restock quantities entered!")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {str(e)}")
+
+    def password_reset_dialog(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Password Required")
+        dialog.configure(bg='#1A1A1A')
+        dialog.geometry("300x150")
+        
+        tk.Label(dialog, 
+                text="Enter Admin Password:",
+                font=('Arial', 12),
+                bg='#1A1A1A',
+                fg='white').pack(pady=10)
+        
+        password_entry = tk.Entry(dialog, show="*", font=('Arial', 12))
+        password_entry.pack(pady=10)
+        
+        def check_password():
+            password = password_entry.get()
+            if hashlib.sha256(password.encode()).hexdigest() == self.admin_pass_hash:
+                dialog.destroy()
+                self.reset_all()
+            else:
+                messagebox.showerror("Error", "Incorrect Password!")
+                dialog.destroy()
+        
+        tk.Button(dialog,
+                 text="Submit",
+                 command=check_password,
+                 bg='#4CAF50',
+                 fg='white',
+                 font=('Arial', 12)).pack(pady=10)
 
     def update_stock_display(self):
         self.stock_text.delete(1.0, tk.END)
         self.stock_text.insert(tk.END, "Bestand: \n\n")
         for drink, info in self.inventory.items():
             self.stock_text.insert(tk.END, 
-                f"{drink}: {info['stock']} (${info['price']:.2f})\n")
+                f"{drink}: {info['stock']} (€{info['price']:.2f})\n")
 
     def add_drink(self):
-        # Simple dialog for adding drinks
         dialog = tk.Toplevel(self.root)
         dialog.title("ADD DRINK TO TAB")
         dialog.configure(bg='#1A1A1A')
@@ -124,14 +249,19 @@ class DrinkPartyTracker:
         name_entry = tk.Entry(dialog, font=('Arial', 14))
         name_entry.pack(pady=5)
         
-        # Drink buttons
-        for drink in self.inventory:
-            tk.Button(dialog,
+        # Drink buttons in a grid
+        drink_frame = tk.Frame(dialog, bg='#1A1A1A')
+        drink_frame.pack(pady=5)
+        
+        for i, drink in enumerate(self.inventory):
+            row = i // 2
+            col = i % 2
+            tk.Button(drink_frame,
                      text=drink,
                      font=('Arial', 14),
                      command=lambda d=drink: self.process_drink(name_entry.get(), d, dialog),
                      bg='#4CAF50',
-                     fg='white').pack(pady=2)
+                     fg='white').grid(row=row, column=col, padx=5, pady=2)
 
     def process_drink(self, name, drink, dialog):
         if not name:
@@ -142,7 +272,6 @@ class DrinkPartyTracker:
             messagebox.showerror("ERROR!", f"NO MORE {drink}!")
             return
             
-        # Add to person's tab
         if name not in self.people_tabs:
             self.people_tabs[name] = []
             
@@ -152,7 +281,6 @@ class DrinkPartyTracker:
             'time': datetime.now().strftime("%H:%M")
         })
         
-        # Decrease stock
         self.inventory[drink]['stock'] -= 1
         
         self.save_data()
@@ -163,7 +291,7 @@ class DrinkPartyTracker:
 
     def show_tabs(self):
         dialog = tk.Toplevel(self.root)
-        dialog.title("PARTY TABS")
+        dialog.title("Rechnungen")
         dialog.configure(bg='#1A1A1A')
         
         text = tk.Text(dialog, font=('Arial', 14), bg='#333333', fg='white')
@@ -171,7 +299,7 @@ class DrinkPartyTracker:
         
         total_party_cost = 0
         
-        text.insert(tk.END, "🎉 PARTY TABS 🎉\n\n")
+        text.insert(tk.END, "Rechnungen \n\n")
         for person, drinks in self.people_tabs.items():
             total = sum(drink['price'] for drink in drinks)
             total_party_cost += total
@@ -179,24 +307,11 @@ class DrinkPartyTracker:
             text.insert(tk.END, f"\n{person}'s Tab:\n")
             for drink in drinks:
                 text.insert(tk.END, 
-                    f"  {drink['time']} - {drink['drink']}: ${drink['price']:.2f}\n")
-            text.insert(tk.END, f"TOTAL: ${total:.2f}\n")
+                    f"  {drink['time']} - {drink['drink']}: €{drink['price']:.2f}\n")
+            text.insert(tk.END, f"TOTAL: €{total:.2f}\n")
             text.insert(tk.END, "-" * 40 + "\n")
             
-        text.insert(tk.END, f"\n🎊 TOTAL PARTY TAB: ${total_party_cost:.2f} 🎊")
-
-    def restock(self):
-        for drink in self.inventory:
-            if drink == "🍺 Beer":
-                self.inventory[drink]['stock'] += 24
-            elif drink == "🍷 Wine":
-                self.inventory[drink]['stock'] += 12
-            else:
-                self.inventory[drink]['stock'] += 20
-                
-        self.save_data()
-        self.update_stock_display()
-        messagebox.showinfo("RESTOCKED!", "DRINKS RESTOCKED! 🎉")
+        text.insert(tk.END, f"\n🎊 TOTAL TAB: €{total_party_cost:.2f} 🎊")
 
     def reset_all(self):
         if messagebox.askyesno("RESET ALL", "RESET EVERYTHING?"):
