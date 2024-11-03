@@ -1,0 +1,1 @@
+{"inventory": {"\ud83c\udf7a Beer": {"price": 2.5, "stock": 23}, "\ud83c\udf77 Wine": {"price": 3.0, "stock": 12}, "\ud83e\udd43 Whiskey": {"price": 4.0, "stock": 20}, "\ud83c\udf78 Vodka": {"price": 4.0, "stock": 20}, "\ud83e\udd64 Mixer": {"price": 1.0, "stock": 20}}, "people": {"Felix": [{"drink": "\ud83c\udf7a Beer", "price": 2.5, "time": "14:23"}]}}
