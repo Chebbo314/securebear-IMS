@@ -85,27 +85,44 @@ class DrinkPartyTracker:
         
         # View/Print Tabs Button
         tk.Button(grid_frame,
-                 text="Rechnung",
-                 command=self.show_tabs,
-                 bg='#9B9B93',
-                 fg='#2A2B2A',
-                 **btn_style).grid(row=0, column=1, padx=5, pady=5)
+                text="Rechnung",
+                command=self.show_tabs,
+                bg='#9B9B93',
+                fg='#2A2B2A',
+                **btn_style).grid(row=0, column=1, padx=5, pady=5)
         
         # Restock Button
         tk.Button(grid_frame,
-                 text="Inventar",
-                 command=self.show_restock_dialog,
-                 bg='#9B9B93',
-                 fg='#2A2B2A',
-                 **btn_style).grid(row=0, column=2, padx=5, pady=5)
+                text="Inventar",
+                command=self.show_restock_dialog,
+                bg='#9B9B93',
+                fg='#2A2B2A',
+                **btn_style).grid(row=0, column=2, padx=5, pady=5)
         
+        tk.Button(grid_frame,
+                text="💾",
+                command=self.create_new_tab,
+                bg='#9B9B93',
+                fg='#2A2B2A',
+                **btn_style).grid(row=1, column=0, padx=5, pady=5)
+
+        # View Saved Tabs Button
+        tk.Button(grid_frame,
+                text="📂",
+                command=self.show_saved_tabs,
+                bg='#9B9B93',
+                fg='#2A2B2A',
+                **btn_style).grid(row=1, column=1, padx=5, pady=5)
+
         # Reset Button with Password
         tk.Button(grid_frame,
                  text="Reset",
                  command=self.password_reset_dialog,
                  bg='#9B9B93',
                  fg='#2A2B2A',
-                 **btn_style).grid(row=2, column=1, padx=5, pady=(100,0))
+                 **btn_style).grid(row=2, column=1, padx=5, pady=(50,0))
+        
+
 
     def show_restock_dialog(self):
         dialog = tk.Toplevel(self.root)
@@ -170,6 +187,124 @@ class DrinkPartyTracker:
                  bg='#FD151B',
                  fg='white',
                  font=('Arial', 12, 'bold')).pack(side='left', padx=5)
+        
+    def create_new_tab(self):
+        current_time = datetime.now()
+        tab_name = f"Rechnung-{current_time.strftime('%Y%m%d-%H%M')}"
+        
+        if self.people_tabs:  # Only save if there are any entries
+            # Save current tab to file
+            tab_data = {
+                'people': self.people_tabs,
+                'inventory_snapshot': self.inventory,
+                'timestamp': current_time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+            # Create tabs directory if it doesn't exist
+            if not os.path.exists('tabs'):
+                os.makedirs('tabs')
+                
+            # Save tab to file
+            with open(f'tabs/{tab_name}.json', 'w') as f:
+                json.dump(tab_data, f)
+                
+            # Clear current people tabs
+            self.people_tabs = {}
+            self.save_data()
+            
+            messagebox.showinfo("Tab Saved", f"Tab saved as: {tab_name}")
+        else:
+            messagebox.showwarning("No Data", "No tab data to save!")
+
+    def show_saved_tabs(self):
+        if not os.path.exists('tabs'):
+            messagebox.showinfo("No Tabs", "No saved tabs found!")
+            return
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("SAVED TABS")
+        dialog.configure(bg='#1A1A1A')
+        dialog.geometry("600x400")
+
+        # Create main frame
+        main_frame = tk.Frame(dialog, bg='#1A1A1A')
+        main_frame.pack(padx=20, pady=20, fill='both', expand=True)
+
+        # Title
+        tk.Label(main_frame,
+                text="SELECT TAB TO VIEW",
+                font=('Arial', 16, 'bold'),
+                bg='#1A1A1A',
+                fg='white').pack(pady=(0, 20))
+
+        # Get list of tab files
+        tab_files = sorted([f for f in os.listdir('tabs') if f.endswith('.json')], reverse=True)
+
+        if not tab_files:
+            tk.Label(main_frame,
+                    text="No saved tabs found",
+                    font=('Arial', 12),
+                    bg='#1A1A1A',
+                    fg='white').pack()
+            return
+
+        # Create scrollable frame for tabs
+        canvas = tk.Canvas(main_frame, bg='#1A1A1A', highlightthickness=0)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg='#1A1A1A')
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+    
+        def view_tab(filename):
+            with open(f'tabs/{filename}', 'r') as f:
+                tab_data = json.load(f)
+
+            # Create new window to show tab details
+            tab_dialog = tk.Toplevel(dialog)
+            tab_dialog.title(f"Tab: {filename}")
+            tab_dialog.configure(bg='#1A1A1A')
+
+            text = tk.Text(tab_dialog, font=('Arial', 14), bg='#333333', fg='white')
+            text.pack(padx=10, pady=10, fill='both', expand=True)
+
+            total_party_cost = 0
+            people_data = tab_data['people']
+
+            text.insert(tk.END, f"🎉 {filename} 🎉\n")
+            text.insert(tk.END, f"Created: {tab_data['timestamp']}\n\n")
+
+            for person, drinks in people_data.items():
+                total = sum(drink['price'] for drink in drinks)
+                total_party_cost += total
+
+                text.insert(tk.END, f"\n{person}'s Tab:\n")
+                for drink in drinks:
+                    text.insert(tk.END, 
+                        f"  {drink['time']} - {drink['drink']}: ${drink['price']:.2f}\n")
+                text.insert(tk.END, f"TOTAL: ${total:.2f}\n")
+                text.insert(tk.END, "-" * 40 + "\n")
+
+            text.insert(tk.END, f"\n🎊 TOTAL PARTY TAB: ${total_party_cost:.2f} 🎊")
+            text.configure(state='disabled')
+
+        # Create button for each tab
+        for file in tab_files:
+            btn = tk.Button(scrollable_frame,
+                           text=file.replace('.json', ''),
+                           command=lambda f=file: view_tab(f),
+                           bg='#4CAF50',
+                           fg='white',
+                           font=('Arial', 12))
+            btn.pack(fill='x', pady=2)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
     def apply_restock(self, dialog):
         try:
