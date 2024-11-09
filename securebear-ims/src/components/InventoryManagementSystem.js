@@ -29,6 +29,8 @@ const PaymentSystem = () => {
   const [password, setPassword] = useState('');
   const [pendingUserId, setPendingUserId] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [selectedDrink, setSelectedDrink] = useState(null);
 
   const CORRECT_PASSWORD = '86403';
 
@@ -99,25 +101,38 @@ const PaymentSystem = () => {
     }
   };
 
-  const addTransaction = (drink) => {
+  const initiateAddTransaction = (drink) => {
     if (selectedUser) {
+      setSelectedDrink(drink);
+      setShowConfirmDialog(true); // Open confirmation dialog
+    }
+  };
+
+  const confirmAddTransaction = () => {
+    if (selectedDrink && selectedUser) {
       const newTransaction = {
         id: transactions.length + 1,
         userId: selectedUser.id,
-        drinkId: drink.id,
-        price: drink.price,
+        drinkId: selectedDrink.id,
+        price: selectedDrink.price,
         date: new Date().toISOString()
       };
+      
       setTransactions([...transactions, newTransaction]);
       
       const updatedUsers = users.map(user => {
         if (user.id === selectedUser.id) {
-          return { ...user, balance: user.balance + drink.price };
+          return { ...user, balance: user.balance + selectedDrink.price };
         }
         return user;
       });
+      
       setUsers(updatedUsers);
-      setSelectedUser({ ...selectedUser, balance: selectedUser.balance + drink.price });
+      setSelectedUser({ ...selectedUser, balance: selectedUser.balance + selectedDrink.price });
+      
+      // Reset dialog states
+      setShowConfirmDialog(false);
+      setSelectedDrink(null);
     }
   };
 
@@ -296,7 +311,7 @@ const PaymentSystem = () => {
             {drinks.map((drink) => (
               <button
                 key={drink.id}
-                onClick={() => addTransaction(drink)}
+                onClick={() => initiateAddTransaction(drink)}
                 className="mt-20 px-15 py-10 bg-customGray text-white font-semibold rounded"
               >
                 {drink.name} - {drink.price.toFixed(2)}€
@@ -305,6 +320,31 @@ const PaymentSystem = () => {
           </div>
         </div>
       )}
+
+      {/* Confirmation Dialog for adding a drink */}
+      <Dialog 
+        open={showConfirmDialog} 
+        onClose={() => setShowConfirmDialog(false)}
+      >
+        <div className="p-4">
+          <h2 className="text-lg font-semibold mb-2">Bestätigung</h2>
+          <p>Möchten Sie {selectedDrink?.name} für {selectedDrink?.price.toFixed(2)}€ zu {selectedUser?.name} hinzufügen?</p>
+          <div className="flex justify-end gap-4 mt-4">
+            <button 
+              onClick={() => setShowConfirmDialog(false)}
+              className="px-4 py-2 bg-gray-300 rounded"
+            >
+              Abbrechen
+            </button>
+            <button 
+              onClick={confirmAddTransaction}
+              className="px-4 py-2 bg-blue-500 text-white rounded"
+            >
+              Bestätigen
+            </button>
+          </div>
+        </div>
+      </Dialog>
 
       {/* Bills View */}
       {view === 'bills' && (
