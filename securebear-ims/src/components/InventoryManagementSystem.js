@@ -133,6 +133,8 @@ const PaymentSystem = () => {
       // Reset dialog states
       setShowConfirmDialog(false);
       setSelectedDrink(null);
+      setView('users');
+
     }
   };
 
@@ -142,15 +144,6 @@ const PaymentSystem = () => {
     setShowPasswordDialog(true);
     setPassword('');
     setErrorMessage('');
-  };
-
-  const clearLocalStorage = () => {
-    localStorage.removeItem('users');
-    localStorage.removeItem('transactions');
-    setUsers([]);
-    setTransactions([]);
-    setSelectedUser(null);
-    setView('users');
   };
 
   const Numpad = () => {
@@ -276,12 +269,6 @@ const PaymentSystem = () => {
           >
             Add User
           </button>
-          <button
-                onClick={clearLocalStorage}
-                className="px-4 py-2 bg-red-500 text-white rounded"
-                >
-                Reset Data
-          </button>
           <Dialog open={showAddUser} onClose={() => setShowAddUser(false)}>
             <div className="p-4">
               <h2 className="text-lg font-semibold mb-2">Neuen Benutzer hinzufügen</h2>
@@ -312,7 +299,7 @@ const PaymentSystem = () => {
               <button
                 key={drink.id}
                 onClick={() => initiateAddTransaction(drink)}
-                className="mt-20 px-15 py-10 bg-customGray text-white font-semibold rounded"
+                className="mt-5 px-10 py-10 bg-customGray text-white font-semibold rounded"
               >
                 {drink.name} - {drink.price.toFixed(2)}€
               </button>
