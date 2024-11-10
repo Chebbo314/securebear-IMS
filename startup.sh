@@ -18,7 +18,7 @@ killall -9 node >/dev/null 2>&1
 
 # Start React development server
 cd $REACT_APP_DIR
-npm start &
+npm run dev
 
 # Wait for React server to be ready
 while ! nc -z localhost $REACT_PORT; do
