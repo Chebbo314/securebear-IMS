@@ -1,0 +1,14 @@
+[Unit]
+Description=React App
+After=network.target
+
+[Service]
+Type=simple
+User=fza
+WorkingDirectory=/home/fza/securebear-IMS/securebear-ims
+ExecStart=/usr/bin/npm start
+Restart=always
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=multi-user.target
