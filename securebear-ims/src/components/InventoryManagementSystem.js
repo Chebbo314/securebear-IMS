@@ -5,7 +5,7 @@ const Dialog = ({ open, onClose, children }) => {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-white bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-white bg-opacity-100 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg mx-0 max-w-full max-h-full overflow-hidden">
         <div className="overflow-y-auto max-h-full max-w-full">
           {children}
@@ -22,6 +22,7 @@ const PaymentSystem = () => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showAddUser, setShowAddUser] = useState(false);
+  const [showRemoveUser, setShowRemoveUser] = useState(false);
   const [newUserName, setNewUserName] = useState('');
   const [view, setView] = useState('users');
   const [transactions, setTransactions] = useState([]);
@@ -29,7 +30,7 @@ const PaymentSystem = () => {
   const [password, setPassword] = useState('');
   const [pendingUserId, setPendingUserId] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showAddConfirmDialog, setShowConfirmDialog] = useState(false);
   const [selectedDrink, setSelectedDrink] = useState(null);
 
   const CORRECT_PASSWORD = '86403';
@@ -99,6 +100,11 @@ const PaymentSystem = () => {
       setNewUserName('');
       setShowAddUser(false);
     }
+  };
+  
+  const removeUser = (userId) => {
+    setUsers(users.filter(user => user.id !== userId));
+    setShowRemoveUser(false);
   };
 
   const initiateAddTransaction = (drink) => {
@@ -253,8 +259,8 @@ const PaymentSystem = () => {
           <h2 className="text-xl font-semibold mb-4">Benutzer</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-h-96 overflow-y-auto">
             {users.map((user) => (
-              <div 
-                key={user.id} 
+              <div
+                key={user.id}
                 onClick={() => setSelectedUser(user)}
                 className={`p-4 rounded-lg cursor-pointer flex flex-col items-center 
                   ${selectedUser?.id === user.id ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
@@ -263,12 +269,26 @@ const PaymentSystem = () => {
               </div>
             ))}
           </div>
-          <button
-            onClick={() => setShowAddUser(true)}
-            className="mt-6 px-4 py-2 bg-blue-500 text-white rounded"
-          >
-            Add User
-          </button>
+          
+          {/* Buttons Container */}
+          <div className="flex space-x-4 mt-5">
+            {/* Add User Button */}
+            <button
+              onClick={() => setShowAddUser(true)}
+              className="mt-10 px-4 py-2 bg-red-500 text-white font-semibold rounded mr-auto"
+            >
+              ADD USER
+            </button>
+
+            {/* Remove User Button */}
+            <button
+              onClick={() => setShowRemoveUser(true)}
+              className="mt-10 px-5 py-4 bg-red-500 text-white font-semibold rounded ml-auto"
+            >
+              REMOVE USER
+            </button>
+          </div>
+          
           <Dialog open={showAddUser} onClose={() => setShowAddUser(false)}>
             <div className="p-4">
               <h2 className="text-lg font-semibold mb-2">Neuen Benutzer hinzufügen</h2>
@@ -287,8 +307,27 @@ const PaymentSystem = () => {
               </button>
             </div>
           </Dialog>
+          <Dialog open={showRemoveUser} onClose={() => setShowRemoveUser(false)}>
+            <div className="p-4">
+              <h2 className="text-lg font-semibold mb-2">Benutzer entfernen</h2>
+              <ul className="list-none space-y-2">
+                {users.map((user) => (
+                  <li key={user.id} className="flex items-center justify-between">
+                    <span>{user.name}</span>
+                    <button
+                      onClick={() => removeUser(user.id)}
+                      className="px-4 py-2 bg-red-500 text-white rounded"
+                    >
+                      Löschen
+                    </button>
+                  </li>
+            ))}
+            </ul>
+          </div>
+        </Dialog>
         </div>
       )}
+
 
       {/* Drink View */}
       {view === 'drinks' && (
@@ -310,7 +349,7 @@ const PaymentSystem = () => {
 
       {/* Confirmation Dialog for adding a drink */}
       <Dialog 
-        open={showConfirmDialog} 
+        open={showAddConfirmDialog} 
         onClose={() => setShowConfirmDialog(false)}
       >
         <div className="p-4">
