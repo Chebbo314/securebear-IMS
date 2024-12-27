@@ -188,7 +188,7 @@ const PaymentSystem = () => {
 
   return (
     <div className="p-4 max-w-8xl mx-auto bg-white shadow-lg text-gray-900 min-h-screen">
-      <header className="flex justify-between mb-10 mt-10 mr-5 ml-5">
+      <header className="flex justify-between mb-10 mt-5 mr-5 ml-5">
         <div className="">
           <h1 className="text-4xl font-bold text-gray-900">securebear.</h1>
           <p className="text-sm justify-end font-semibold text-gray-600 tracking-wide">IT-SOLUTIONS</p>
@@ -329,7 +329,7 @@ const PaymentSystem = () => {
       {/* Drink View */}
       {view === 'drinks' && (
         <div>
-          <h2 className="text-3xl font-semibold mb-20 mr-5 ml-5">Getränke</h2>
+          <h2 className="text-3xl font-semibold mb-10 mr-5 ml-5">Getränke</h2>
           <div className="text-xl grid grid-cols-2 gap-10 mr-auto ml-auto max-w-4xl">
             {drinks.map((drink) => (
               <button
