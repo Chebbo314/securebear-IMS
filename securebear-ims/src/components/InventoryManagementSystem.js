@@ -190,19 +190,19 @@ const PaymentSystem = () => {
     <div className="p-4 max-w-8xl mx-auto bg-white shadow-lg text-gray-900 min-h-screen">
       <header className="flex justify-between mb-10 mt-10 mr-5 ml-5">
         <div className="">
-          <h1 className="text-6xl font-bold text-gray-900">securebear.</h1>
+          <h1 className="text-4xl font-bold text-gray-900">securebear.</h1>
           <p className="text-sm justify-end font-semibold text-gray-600 tracking-wide">IT-SOLUTIONS</p>
         </div>
         <div className="flex gap-6 mb-10 text-xl justify-center">
           <button 
             onClick={() => setView('users')}
-            className={`px-16 py-6 rounded ${view === 'users' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
+            className={`px-14 py-6 rounded ${view === 'users' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
           >
             Benutzer
           </button>
           <button 
             onClick={() => setView('drinks')}
-            className={`px-16 py-6 rounded ${view === 'drinks' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
+            className={`px-14 py-6 rounded ${view === 'drinks' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
           >
             Getränke
           </button>
@@ -330,7 +330,7 @@ const PaymentSystem = () => {
       {view === 'drinks' && (
         <div>
           <h2 className="text-3xl font-semibold mb-20 mr-5 ml-5">Getränke</h2>
-          <div className="text-xl grid grid-cols-2 gap-20 mr-auto ml-auto max-w-6xl">
+          <div className="text-xl grid grid-cols-2 gap-10 mr-auto ml-auto max-w-4xl">
             {drinks.map((drink) => (
               <button
                 key={drink.id}
