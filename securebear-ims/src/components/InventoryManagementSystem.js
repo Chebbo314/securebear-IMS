@@ -187,36 +187,33 @@ const PaymentSystem = () => {
   };
 
   return (
-    <div className="p-4 max-w-4xl mx-auto bg-white shadow-lg text-gray-900 min-h-screen">
-      <header className="flex flex-col items-center mb-10 mt-3">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900">securebear.</h1>
-          <div className="flex justify-end w-full">
-            <p className="text-sm font-semibold text-gray-600 tracking-wide">IT-SOLUTIONS</p>
-          </div>
+    <div className="p-4 max-w-8xl mx-auto bg-white shadow-lg text-gray-900 min-h-screen">
+      <header className="flex justify-between mb-10 mt-10 mr-5 ml-5">
+        <div className="">
+          <h1 className="text-6xl font-bold text-gray-900">securebear.</h1>
+          <p className="text-sm justify-end font-semibold text-gray-600 tracking-wide">IT-SOLUTIONS</p>
+        </div>
+        <div className="flex gap-6 mb-10 text-xl justify-center">
+          <button 
+            onClick={() => setView('users')}
+            className={`px-16 py-6 rounded ${view === 'users' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
+          >
+            Benutzer
+          </button>
+          <button 
+            onClick={() => setView('drinks')}
+            className={`px-16 py-6 rounded ${view === 'drinks' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
+          >
+            Getränke
+          </button>
+          <button 
+            onClick={() => setView('bills')}
+            className={`px-12 py-6 rounded ${view === 'bills' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
+          >
+            Abrechnungen
+          </button>
         </div>
       </header> 
-      <div className="flex gap-2 mb-4">
-        <button 
-          onClick={() => setView('users')}
-          className={`px-8 py-4 rounded ${view === 'users' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
-        >
-          Benutzer
-        </button>
-        <button 
-          onClick={() => setView('drinks')}
-          className={`px-8 py-4 rounded ${view === 'drinks' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
-        >
-          Getränke
-        </button>
-        <button 
-          onClick={() => setView('bills')}
-          className={`px-8 py-4 rounded ${view === 'bills' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
-        >
-          Abrechnungen
-        </button>
-      </div>
-
       <Dialog 
         open={showPasswordDialog} 
         onClose={() => {
@@ -255,14 +252,14 @@ const PaymentSystem = () => {
 
       {/* User View */}
       {view === 'users' && (
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Benutzer</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-h-96 overflow-y-auto">
+        <div className="flex-grow overflow-y-auto px-4 pt-4 mb-4"> 
+          <h2 className="text-3xl font-semibold mb-4">Benutzer</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-6 gap-8 max-h-full overflow-y-auto">
             {users.map((user) => (
               <div
                 key={user.id}
                 onClick={() => setSelectedUser(user)}
-                className={`p-4 rounded-lg cursor-pointer flex flex-col items-center 
+                className={`p-8 rounded-lg cursor-pointer flex flex-col items-center 
                   ${selectedUser?.id === user.id ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
               >
                 <span className="font-medium text-lg">{user.name}</span>
@@ -271,21 +268,21 @@ const PaymentSystem = () => {
           </div>
           
           {/* Buttons Container */}
-          <div className="flex space-x-4 mt-5">
+          <div className="flex space-x-4 mt-40">
             {/* Add User Button */}
             <button
               onClick={() => setShowAddUser(true)}
-              className="mt-10 px-4 py-2 bg-red-500 text-white font-semibold rounded mr-auto"
+              className="mt-auto px-12 py-4 bg-green-500 text-black rounded mr-auto tracking-wide"
             >
-              ADD USER
+              Add User
             </button>
 
             {/* Remove User Button */}
             <button
               onClick={() => setShowRemoveUser(true)}
-              className="mt-10 px-5 py-4 bg-red-500 text-white font-semibold rounded ml-auto"
+              className="mt-auto px-12 py-4 bg-red-500 text-black rounded tracking-wide"
             >
-              REMOVE USER
+              Remove User
             </button>
           </div>
           
@@ -332,8 +329,8 @@ const PaymentSystem = () => {
       {/* Drink View */}
       {view === 'drinks' && (
         <div>
-          <h2 className="text-xl font-semibold mb-4">Getränke</h2>
-          <div className="grid grid-cols-2 gap-6">
+          <h2 className="text-3xl font-semibold mb-20 mr-5 ml-5">Getränke</h2>
+          <div className="text-xl grid grid-cols-2 gap-20 mr-auto ml-auto max-w-6xl">
             {drinks.map((drink) => (
               <button
                 key={drink.id}
@@ -375,8 +372,8 @@ const PaymentSystem = () => {
       {/* Bills View */}
       {view === 'bills' && (
         <div>
-          <h2 className="text-xl font-semibold mb-4">Abrechnungen</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+          <h2 className="text-xl font-semibold mb-4 mr-5 ml-5">Abrechnungen</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto mr-5 ml-5">
           {users.map((user) => (
             <div key={user.id} className="flex justify-between items-center p-4 bg-gray-200 rounded-lg mb-4">
               <span>{user.name}</span>
