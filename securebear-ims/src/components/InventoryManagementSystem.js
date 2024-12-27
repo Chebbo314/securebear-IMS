@@ -1,5 +1,65 @@
 import React, { useState, useEffect } from 'react';
 
+const TouchKeyboard = ({ onInput, onEnter }) => {
+  const [isShift, setIsShift] = useState(false);
+  
+  const keys = [
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+    ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+    ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+    ['⇧', 'z', 'x', 'c', 'v', 'b', 'n', 'm', '⌫'],
+    ['space', 'enter']
+  ];
+
+  const handleKeyClick = (key) => {
+    switch(key) {
+      case '⇧':
+        setIsShift(!isShift);
+        break;
+      case '⌫':
+        onInput(prev => prev.slice(0, -1));
+        break;
+      case 'space':
+        onInput(prev => prev + ' ');
+        break;
+      case 'enter':
+        onEnter?.();
+        break;
+      default:
+        onInput(prev => prev + (isShift ? key.toUpperCase() : key));
+        setIsShift(false);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-3xl bg-gray-100 p-2 rounded-lg">
+      {keys.map((row, i) => (
+        <div key={i} className="flex justify-center gap-1 mb-1">
+          {row.map((key) => (
+            <button
+              key={key}
+              onClick={() => handleKeyClick(key)}
+              className={`
+                ${key === 'space' ? 'w-64' : key === 'enter' ? 'w-24' : 'w-12'}
+                h-12 
+                ${isShift && key.length === 1 ? 'text-blue-600' : ''} 
+                ${key === '⇧' && isShift ? 'bg-blue-200' : 'bg-white'} 
+                rounded-md 
+                shadow 
+                hover:bg-gray-50 
+                active:bg-gray-200 
+                font-medium
+              `}
+            >
+              {key === 'space' ? '␣' : key}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // Custom Dialog Component
 const Dialog = ({ open, onClose, children }) => {
   if (!open) return null;
@@ -100,7 +160,7 @@ const PaymentSystem = () => {
       setNewUserName('');
       setShowAddUser(false);
     }
-  };
+  }; 
   
   const removeUser = (userId) => {
     setUsers(users.filter(user => user.id !== userId));
@@ -286,24 +346,28 @@ const PaymentSystem = () => {
             </button>
           </div>
           
-          <Dialog open={showAddUser} onClose={() => setShowAddUser(false)}>
-            <div className="p-4">
-              <h2 className="text-lg font-semibold mb-2">Neuen Benutzer hinzufügen</h2>
-              <input
-                type="text"
-                value={newUserName}
-                onChange={(e) => setNewUserName(e.target.value)}
-                placeholder="Benutzername"
-                className="w-full p-2 mb-2 border border-gray-300 rounded"
-              />
-              <button
-                onClick={addUser}
-                className="px-4 py-2 bg-blue-500 text-white rounded"
-              >
-                Hinzufügen
-              </button>
+        <Dialog open={showAddUser} onClose={() => setShowAddUser(false)}>
+          <div className="p-4">
+            <h2 className="text-lg font-semibold mb-2">Neuen Benutzer hinzufügen</h2>
+            <input
+              type="text"
+              value={newUserName}
+              readOnly
+              placeholder="Benutzername"
+              className="w-full p-2 mb-4 border border-gray-300 rounded"
+            />
+            <TouchKeyboard 
+              onInput={setNewUserName}
+              onEnter={() => {
+              if (newUserName.trim()) {
+                addUser();
+                setNewUserName('');
+            }
+            }}
+            />
             </div>
           </Dialog>
+
           <Dialog open={showRemoveUser} onClose={() => setShowRemoveUser(false)}>
             <div className="p-4">
               <h2 className="text-lg font-semibold mb-2">Benutzer entfernen</h2>
