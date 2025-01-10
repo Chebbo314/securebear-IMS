@@ -1,43 +1,38 @@
 #!/bin/bash
 
-# Save as /home/pi/deploy-react.sh
+# Script to launch the payment system in fullscreen mode
+# Save this as start-payment.sh
+
 # Configuration
-REACT_APP_DIR="/home/fza/securebear-IMS/securebear-ims"
-PORT=3000
-SERVE_DIR="/home/fza/serve"
+APP_DIR="/home/fza/securebear-IMS/securebear-ims/"  # Replace with your actual project directory
+DISPLAY=:0                         # Default display
+CHROMIUM_FLAGS="--kiosk --disable-restore-session-state --noerrdialogs --disable-infobars"
 
-# Install required packages if not present
-if ! command -v serve &> /dev/null; then
-    echo "Installing serve..."
-    npm install -g serve
-fi
+# Function to check if the server is running
+check_server() {
+    curl -s http://localhost:3000 > /dev/null
+    return $?
+}
 
-if ! command -v pm2 &> /dev/null; then
-    echo "Installing PM2..."
-    npm install -g pm2
-fi
+# Navigate to application directory
+cd "$APP_DIR" || {
+    echo "Error: Could not find application directory"
+    exit 1
+}
 
-# Create production build
-echo "Creating production build..."
-cd $REACT_APP_DIR
-npm install
-npm run build
+# Start the development server
+echo "Starting npm server..."
+npm start &
 
-# Create serve directory if it doesn't exist
-mkdir -p $SERVE_DIR
+# Wait for server to be ready
+echo "Waiting for server to start..."
+while ! check_server; do
+    sleep 1
+done
 
-# Copy build files to serve directory
-cp -r build/* $SERVE_DIR/
+# Launch Chromium in kiosk mode
+echo "Launching browser in fullscreen..."
+DISPLAY=:0 chromium-browser $CHROMIUM_FLAGS "http://localhost:3000" &
 
-# Stop any existing PM2 processes
-pm2 stop all >/dev/null 2>&1
-pm2 delete all >/dev/null 2>&1
-
-# Start the production server with PM2
-echo "Starting production server..."
-pm2 serve $SERVE_DIR $PORT --spa --name "react-production"
-
-# Save PM2 process list
-pm2 save
-
-echo "Deployment complete! Your app is running at http://localhost:$PORT"
+# Keep script running to maintain the processes
+wait
