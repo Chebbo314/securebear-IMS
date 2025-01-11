@@ -92,8 +92,9 @@ const PaymentSystem = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [showAddConfirmDialog, setShowConfirmDialog] = useState(false);
   const [selectedDrink, setSelectedDrink] = useState(null);
+  const [drinkCounts, setDrinkCounts] = useState({});
 
-  const CORRECT_PASSWORD = '86403';
+  const CORRECT_PASSWORD = '86859';
 
   const handleNumpadClick = (num) => {
     if (password.length < 5) {
@@ -120,6 +121,14 @@ const PaymentSystem = () => {
     localStorage.setItem('users', JSON.stringify(users));
     localStorage.setItem('transactions', JSON.stringify(transactions));
   }, [users, transactions]);
+
+  useEffect(() => {
+    const counts = transactions.reduce((acc, transaction) => {
+      acc[transaction.drinkId] = (acc[transaction.drinkId] || 0) + 1;
+      return acc;
+    }, {});
+    setDrinkCounts(counts);
+  }, [transactions]);
 
   const drinks = [
     { id: 1, name: 'Bier', price: 2.00 },
@@ -271,6 +280,12 @@ const PaymentSystem = () => {
             className={`px-12 py-6 rounded ${view === 'bills' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
           >
             Abrechnungen
+          </button>
+          <button 
+            onClick={() => setView('stats')}
+            className={`px-12 py-6 rounded ${view === 'bills' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
+          >
+            Statistik
           </button>
         </div>
       </header> 
@@ -451,6 +466,25 @@ const PaymentSystem = () => {
             </div>
           ))}  
           </div>
+        </div>
+      )}
+      {view === 'stats' && (
+        <div className="justify-center items-center min-h-screen bg-gray-50">
+        <div className="max-w-100 w-full p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="p-10 bg-white rounded-lg shadow-lg">
+              <h3 className="text-2xl font-semibold mb-6 text-center">Statistik</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                {drinks.map(drink => (
+                  <div key={drink.id} className="bg-gray-100 p-6 rounded-lg shadow-md text-center">
+                    <p className="font-medium text-lg">{drink.name}</p>
+                    <p className="text-3xl font-bold text-indigo-600">{drinkCounts[drink.id] || 0}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
         </div>
       )}
     </div>
