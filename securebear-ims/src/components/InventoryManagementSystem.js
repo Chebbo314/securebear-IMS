@@ -93,6 +93,7 @@ const PaymentSystem = () => {
   const [showAddConfirmDialog, setShowConfirmDialog] = useState(false);
   const [selectedDrink, setSelectedDrink] = useState(null);
   const [drinkCounts, setDrinkCounts] = useState({});
+  const [userStats, setUserStats] = useState([]);
 
   const CORRECT_PASSWORD = '86859';
 
@@ -129,6 +130,22 @@ const PaymentSystem = () => {
     }, {});
     setDrinkCounts(counts);
   }, [transactions]);
+
+  useEffect(() => {
+    const stats = users.map(user => {
+      const userTransactions = transactions.filter(t => t.userId === user.id);
+      return {
+        id: user.id,
+        name: user.name,
+        totalDrinks: userTransactions.length,
+        totalSpent: userTransactions.reduce((sum, t) => sum + t.price, 0)
+      };
+    });
+    
+    // Sort by total drinks in descending order
+    const sortedStats = stats.sort((a, b) => b.totalDrinks - a.totalDrinks);
+    setUserStats(sortedStats);
+  }, [transactions, users]);
 
   const drinks = [
     { id: 1, name: 'Bier', price: 2.00 },
@@ -259,8 +276,8 @@ const PaymentSystem = () => {
     <div className="p-4 max-w-8xl mx-auto bg-white shadow-lg text-gray-900 min-h-screen">
       <header className="flex justify-between mb-10 mt-5 mr-5 ml-5">
         <div className="">
-          <h1 className="text-4xl font-bold text-gray-900">securebear.</h1>
-          <p className="text-sm justify-end font-semibold text-gray-600 tracking-wide">IT-SOLUTIONS</p>
+          <h1 className="text-5xl font-bold text-gray-900">securebear.</h1>
+          <p className="text-sm font-semibold text-gray-600 tracking-wider mt-1">IT-SOLUTIONS</p>
         </div>
         <div className="flex gap-6 mb-10 text-xl justify-center">
           <button 
@@ -283,7 +300,7 @@ const PaymentSystem = () => {
           </button>
           <button 
             onClick={() => setView('stats')}
-            className={`px-12 py-6 rounded ${view === 'bills' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
+            className={`px-12 py-6 rounded ${view === 'stats' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
           >
             Statistik
           </button>
@@ -469,24 +486,46 @@ const PaymentSystem = () => {
         </div>
       )}
       {view === 'stats' && (
-        <div className="justify-center items-center min-h-screen bg-gray-50">
-        <div className="max-w-100 w-full p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="p-10 bg-white rounded-lg shadow-lg">
-              <h3 className="text-2xl font-semibold mb-6 text-center">Statistik</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                {drinks.map(drink => (
-                  <div key={drink.id} className="bg-gray-100 p-6 rounded-lg shadow-md text-center">
-                    <p className="font-medium text-lg">{drink.name}</p>
-                    <p className="text-3xl font-bold text-indigo-600">{drinkCounts[drink.id] || 0}</p>
+    <div className="justify-center items-center min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Drinks Statistics */}
+          <div className="p-10 bg-white rounded-lg shadow-lg">
+            <h3 className="text-2xl font-semibold mb-6 text-center">Getränkestatistik</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+              {drinks.map(drink => (
+                <div key={drink.id} className="bg-gray-100 p-6 rounded-lg shadow-md text-center">
+                  <p className="font-medium text-lg">{drink.name}</p>
+                  <p className="text-3xl font-bold text-indigo-600">{drinkCounts[drink.id] || 0}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Top Users List */}
+          <div className="p-10 bg-white rounded-lg shadow-lg">
+            <h3 className="text-2xl font-semibold mb-6 text-center">Top Benutzer</h3>
+            <div className="space-y-4">
+              {userStats.map((stat, index) => (
+                <div key={stat.id} className="bg-gray-100 p-4 rounded-lg shadow-md">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl font-bold text-indigo-600">#{index + 1}</span>
+                      <span className="font-medium text-lg">{stat.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold">{stat.totalDrinks} Getränke</p>
+                      <p className="text-sm text-gray-600">{stat.totalSpent.toFixed(2)}€</p>
+                    </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-        </div>
-      )}
+      </div>
+    </div>
+  )}
     </div>
   );
 };
