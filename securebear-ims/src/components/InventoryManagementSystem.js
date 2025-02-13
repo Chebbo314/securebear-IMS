@@ -98,21 +98,38 @@ const PaymentSystem = () => {
   const [roundQuantity, setRoundQuantity] = useState(1);
   const [roundDrink, setRoundDrink] = useState(null);
   const [roundStep, setRoundStep] = useState('select-drink');
+  const [showAdminDialog, setShowAdminDialog] = useState(false);
+  const [showPriceEditDialog, setShowPriceEditDialog] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [editingDrink, setEditingDrink] = useState(null);
+  const [newPrice, setNewPrice] = useState('');
+  const [adminError, setAdminError] = useState('');
 
   const CORRECT_PASSWORD = '86859';
+  const ADMIN_PASSWORD = '86859';
 
   const handleNumpadClick = (num) => {
-    if (password.length < 5) {
+    if (showPasswordDialog && password.length < 5) {
       setPassword(prev => prev + num);
+    } else if (showAdminDialog && adminPassword.length < 5) {
+      setAdminPassword(prev => prev + num);
     }
   };
 
   const handleBackspace = () => {
-    setPassword(prev => prev.slice(0, -1));
+    if (showPasswordDialog) {
+      setPassword(prev => prev.slice(0, -1));
+    } else if (showAdminDialog) {
+      setAdminPassword(prev => prev.slice(0, -1));
+    }
   };
 
   const handleClear = () => {
-    setPassword('');
+    if (showPasswordDialog) {
+      setPassword('');
+    } else if (showAdminDialog) {
+      setAdminPassword('');
+    }
   };
 
   useEffect(() => {
@@ -151,12 +168,12 @@ const PaymentSystem = () => {
     setUserStats(sortedStats);
   }, [transactions, users]);
 
-  const drinks = [
+  const [drinks, setDrinks] = useState([
     { id: 1, name: 'Bier', price: 2.00 },
     { id: 2, name: 'Schnaps', price: 2.00 },
     { id: 3, name: 'Alkfrei', price: 1.50 },
     { id: 4, name: 'Goaß', price: 6.00 }
-  ];
+  ]);
 
   const handlePasswordSubmit = () => {
     if (password === CORRECT_PASSWORD) {
@@ -335,11 +352,40 @@ const PaymentSystem = () => {
     setRoundStep('select-drink');
   };
 
+  const verifyAdminPassword = () => {
+    if (adminPassword === ADMIN_PASSWORD) {
+      setShowAdminDialog(false);
+      setShowPriceEditDialog(true);
+      setAdminPassword('');
+      setAdminError('');
+    } else {
+      setAdminError('Falsches Passwort');
+      setAdminPassword('');
+    }
+  };
+
+  const updatePrice = () => {
+    if (!editingDrink || isNaN(newPrice) || newPrice <= 0) return;
+  
+    const updatedDrinks = drinks.map(drink => {
+      if (drink.id === editingDrink.id) {
+        return { ...drink, price: parseFloat(newPrice) };
+      }
+      return drink;
+    });
+  
+    // Use setDrinks instead of reassignment
+    setDrinks(updatedDrinks);
+    
+    setEditingDrink(null);
+    setNewPrice('');
+  };
+
   return (
     <div className="p-4 max-w-8xl mx-auto bg-white shadow-lg text-gray-900 min-h-screen">
       <header className="flex justify-between mb-10 mt-5 mr-5 ml-5">
         <div className="">
-          <h1 className="text-5xl font-bold text-gray-900">securebear.</h1>
+          <h1 className="text-5xl font-bold text-gray-900">Z-IT.</h1>
           <p className="text-sm font-semibold text-gray-600 tracking-wider mt-1">IT-SOLUTIONS</p>
         </div>
         <div className="flex gap-6 mb-10 text-xl justify-center">
@@ -367,8 +413,126 @@ const PaymentSystem = () => {
           >
             Statistik
           </button>
+          <button 
+            onClick={() => setShowAdminDialog(true)}
+            className="px-12 py-6 rounded bg-gray-800 text-white"
+          >
+          Einstellungen
+          </button>
         </div>
-      </header> 
+      </header>
+      <Dialog 
+        open={showAdminDialog} 
+        onClose={() => {
+          setShowAdminDialog(false);
+          setAdminPassword('');
+          setAdminError('');
+        }}
+      >
+        <div className="p-6">
+          <h2 className="text-2xl font-semibold mb-4">Admin-Bereich</h2>
+          {adminError && (
+            <p className="text-red-500 mb-4">{adminError}</p>
+          )}
+          <div className="mb-4">
+            <input
+              type="password"
+              value={adminPassword}
+              readOnly
+              placeholder="Admin Passwort"
+              className="w-full p-2 border border-gray-300 rounded"
+            />
+          </div>
+          <div className="flex justify-center">
+            <Numpad />
+          </div>
+          <div className="flex justify-end gap-4">
+            <button 
+              onClick={() => {
+                setShowAdminDialog(false);
+                setAdminPassword('');
+                setAdminError('');
+              }}
+              className="px-4 py-2 bg-gray-200 rounded mt-4"
+            >
+              Abbrechen
+            </button>
+            
+            <button 
+              onClick={verifyAdminPassword}
+              className="px-4 py-2 bg-blue-500 text-white rounded mt-4"
+            >
+              Bestätigen
+            </button>
+          </div>
+        </div>
+      </Dialog>
+
+
+      {/* Price Edit Dialog */}
+      <Dialog 
+        open={showPriceEditDialog} 
+        onClose={() => setShowPriceEditDialog(false)}
+      >
+        <div className="p-6">
+          <h2 className="text-2xl font-semibold mb-6">Preise bearbeiten</h2>
+          <div className="space-y-4">
+            {drinks.map(drink => (
+              <div key={drink.id} className="flex items-center justify-between p-6 bg-gray-100 rounded">
+                <span className="text-lg mr-5">{drink.name}</span>
+                {editingDrink?.id === drink.id ? (
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="number"
+                      value={newPrice}
+                      onChange={(e) => setNewPrice(e.target.value)}
+                      className="w-24 p-2 border border-gray-300 rounded"
+                      step="0.10"
+                      min="0"
+                    />
+                    <button
+                      onClick={updatePrice}
+                      className="px-3 py-2 bg-green-500 text-white rounded"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingDrink(null);
+                        setNewPrice('');
+                      }}
+                      className="px-3 py-2 bg-red-500 text-white rounded"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <span>{drink.price.toFixed(2)}€</span>
+                    <button
+                      onClick={() => {
+                        setEditingDrink(drink);
+                        setNewPrice(drink.price.toString());
+                      }}
+                      className="px-4 py-2 bg-blue-500 text-white rounded"
+                    >
+                      Bearbeiten
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end mt-6">
+            <button 
+              onClick={() => setShowPriceEditDialog(false)}
+              className="px-6 py-3 bg-gray-200 rounded"
+            >
+              Schließen
+            </button>
+          </div>
+        </div>
+      </Dialog>
       <Dialog 
         open={showPasswordDialog} 
         onClose={() => {
@@ -432,13 +596,6 @@ const PaymentSystem = () => {
               Add User
             </button>
 
-            {/* Remove User Button */}
-            <button
-              onClick={() => setShowRemoveUser(true)}
-              className="mt-auto px-12 py-4 bg-red-500 text-black rounded tracking-wide"
-            >
-              Remove User
-            </button>
           </div>
           
         <Dialog open={showAddUser} onClose={() => setShowAddUser(false)}>
