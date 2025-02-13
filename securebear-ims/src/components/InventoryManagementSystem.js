@@ -94,6 +94,10 @@ const PaymentSystem = () => {
   const [selectedDrink, setSelectedDrink] = useState(null);
   const [drinkCounts, setDrinkCounts] = useState({});
   const [userStats, setUserStats] = useState([]);
+  const [showRoundDialog, setShowRoundDialog] = useState(false);
+  const [roundQuantity, setRoundQuantity] = useState(1);
+  const [roundDrink, setRoundDrink] = useState(null);
+  const [roundStep, setRoundStep] = useState('select-drink');
 
   const CORRECT_PASSWORD = '86859';
 
@@ -272,6 +276,65 @@ const PaymentSystem = () => {
     );
   };
 
+  const initiateRound = (drink) => {
+    if (selectedUser) {
+      setRoundDrink(drink);
+      setShowRoundDialog(true);
+    }
+  };
+
+  const selectDrinkForRound = (drink) => {
+    setRoundDrink(drink);
+    setRoundStep('select-quantity');
+  };
+
+  const confirmRound = () => {
+    if (roundDrink && selectedUser && roundQuantity > 0) {
+      // Erstelle Transaktionen für jedes Getränk in der Runde
+      const newTransactions = [];
+      const totalPrice = roundDrink.price * roundQuantity;
+
+      // Erstelle die angegebene Anzahl an Transaktionen
+      for (let i = 0; i < roundQuantity; i++) {
+        newTransactions.push({
+          id: transactions.length + i + 1,
+          userId: selectedUser.id,
+          drinkId: roundDrink.id,
+          price: roundDrink.price,
+          date: new Date().toISOString(),
+          isRound: true
+        });
+      }
+
+      setTransactions([...transactions, ...newTransactions]);
+
+      // Update des Benutzerguthabens
+      const updatedUsers = users.map(user => {
+        if (user.id === selectedUser.id) {
+          return { ...user, balance: user.balance + totalPrice };
+        }
+        return user;
+      });
+
+      setUsers(updatedUsers);
+      setSelectedUser({ ...selectedUser, balance: selectedUser.balance + totalPrice });
+
+      // Reset der Dialog-States
+      setShowRoundDialog(false);
+      setRoundDrink(null);
+      setRoundQuantity(1);
+      setRoundStep('select-drink');
+      setView('users');
+    }
+  };
+
+  const resetRoundDialog = () => {
+    setShowRoundDialog(false);
+    setRoundDrink(null);
+    setRoundQuantity(1);
+    setRoundStep('select-drink');
+  };
+
   return (
     <div className="p-4 max-w-8xl mx-auto bg-white shadow-lg text-gray-900 min-h-screen">
       <header className="flex justify-between mb-10 mt-5 mr-5 ml-5">
@@ -422,23 +485,103 @@ const PaymentSystem = () => {
       )}
 
 
-      {/* Drink View */}
-      {view === 'drinks' && (
-        <div>
-          <h2 className="text-3xl font-semibold mb-10 mr-5 ml-5">Getränke</h2>
-          <div className="text-xl grid grid-cols-2 gap-10 mr-auto ml-auto max-w-4xl">
-            {drinks.map((drink) => (
-              <button
-                key={drink.id}
-                onClick={() => initiateAddTransaction(drink)}
-                className="mt-5 px-10 py-10 bg-customGray text-white font-semibold rounded"
-              >
-                {drink.name} - {drink.price.toFixed(2)}€
-              </button>
-            ))}
-          </div>
+    {/* Drink View */}
+  {view === 'drinks' && (
+    <div>
+      <h2 className="text-3xl font-semibold mb-10 mr-5 ml-5">Getränke</h2>
+      <div className="text-xl grid grid-cols-2 gap-10 mr-auto ml-auto max-w-4xl">
+        {drinks.map((drink) => (
+          <button
+            key={drink.id}
+            onClick={() => initiateAddTransaction(drink)}
+            className="mt-5 px-10 py-10 bg-customGray text-white font-semibold rounded"
+          >
+            {drink.name} - {drink.price.toFixed(2)}€
+          </button>
+        ))}
+      </div>
+      <div className="flex justify-center mt-10">
+        <button
+          onClick={initiateRound}
+          className="px-10 py-6 bg-blue-500 text-white font-semibold rounded text-xl"
+        >
+          Runde ausgeben
+        </button>
+      </div>
+    </div>
+  )}
+
+  {/* Runden Dialog */}
+      <Dialog 
+        open={showRoundDialog} 
+        onClose={resetRoundDialog}
+      >
+        <div className="p-6">
+          {roundStep === 'select-drink' ? (
+            <>
+              <h2 className="text-2xl font-semibold mb-6">Getränk für die Runde auswählen</h2>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                {drinks.map((drink) => (
+                  <button
+                    key={drink.id}
+                    onClick={() => selectDrinkForRound(drink)}
+                    className="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-lg font-medium"
+                  >
+                    {drink.name} - {drink.price.toFixed(2)}€
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-end">
+                <button 
+                  onClick={resetRoundDialog}
+                  className="px-6 py-3 bg-gray-200 rounded"
+                >
+                  Abbrechen
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-semibold mb-4">Anzahl festlegen</h2>
+              <p className="mb-4">
+                Wie viele {roundDrink?.name} möchtest du ausgeben?
+              </p>
+              <div className="flex items-center justify-center gap-4 mb-6">
+                <button 
+                  onClick={() => setRoundQuantity(Math.max(1, roundQuantity - 1))}
+                  className="px-4 py-2 bg-gray-200 rounded-lg text-xl"
+                >
+                  -
+                </button>
+                <span className="text-2xl font-bold">{roundQuantity}</span>
+                <button 
+                  onClick={() => setRoundQuantity(roundQuantity + 1)}
+                  className="px-4 py-2 bg-gray-200 rounded-lg text-xl"
+                >
+                  +
+                </button>
+              </div>
+              <p className="mb-6 text-center text-lg">
+                Gesamtpreis: {(roundDrink?.price * roundQuantity).toFixed(2)}€
+              </p>
+              <div className="flex justify-end gap-4">
+                <button 
+                  onClick={() => setRoundStep('select-drink')}
+                  className="px-6 py-3 bg-gray-200 rounded"
+                >
+                  Zurück
+                </button>
+                <button 
+                  onClick={confirmRound}
+                  className="px-6 py-3 bg-blue-500 text-white rounded"
+                >
+                  Bestätigen
+                </button>
+              </div>
+            </>
+          )}
         </div>
-      )}
+      </Dialog>
 
       {/* Confirmation Dialog for adding a drink */}
       <Dialog 
@@ -468,7 +611,7 @@ const PaymentSystem = () => {
       {/* Bills View */}
       {view === 'bills' && (
         <div>
-          <h2 className="text-xl font-semibold mb-4 mr-5 ml-5">Abrechnungen</h2>
+          <h2 className="text-3xl font-semibold mb-10 mr-5 ml-5">Abrechnungen</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto mr-5 ml-5">
           {users.map((user) => (
             <div key={user.id} className="flex justify-between items-center p-4 bg-gray-200 rounded-lg mb-4">
@@ -487,12 +630,12 @@ const PaymentSystem = () => {
       )}
       {view === 'stats' && (
     <div className="justify-center items-center min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-4">
+      <div className="max-w-6xl mx-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Drinks Statistics */}
           <div className="p-10 bg-white rounded-lg shadow-lg">
             <h3 className="text-2xl font-semibold mb-6 text-center">Getränkestatistik</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {drinks.map(drink => (
                 <div key={drink.id} className="bg-gray-100 p-6 rounded-lg shadow-md text-center">
                   <p className="font-medium text-lg">{drink.name}</p>
