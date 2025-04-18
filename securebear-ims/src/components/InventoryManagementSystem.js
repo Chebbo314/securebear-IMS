@@ -662,7 +662,6 @@ const PaymentSystem = () => {
       <header className="flex justify-between mb-10 mt-5 mr-5 ml-5">
         <div className="">
           <h1 className="text-5xl font-bold text-gray-900">Z-IT.</h1>
-          <p className="text-sm font-semibold text-gray-600 tracking-wider mt-1">IT-SOLUTIONS</p>
         </div>
         <div className="flex gap-6 mb-10 text-xl justify-center">
           <button 
