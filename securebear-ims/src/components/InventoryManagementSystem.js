@@ -104,34 +104,59 @@ const PaymentSystem = () => {
   const [editingDrink, setEditingDrink] = useState(null);
   const [newPrice, setNewPrice] = useState('');
   const [adminError, setAdminError] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentStep, setPaymentStep] = useState('amount'); // 'amount' oder 'password'
+  const [showLogDialog, setShowLogDialog] = useState(false);
+  const [logs, setLogs] = useState([]);
+  const [currentLogName, setCurrentLogName] = useState('');
+  const [showCreateLogDialog, setShowCreateLogDialog] = useState(false);
+  const [newLogName, setNewLogName] = useState('');
+  const [savedLogs, setSavedLogs] = useState({});
+  const [showSavedLogsDialog, setShowSavedLogsDialog] = useState(false);
+  const [selectedLog, setSelectedLog] = useState(null);
 
   const CORRECT_PASSWORD = '86859';
   const ADMIN_PASSWORD = '86859';
 
   const handleNumpadClick = (num) => {
-    if (showPasswordDialog && password.length < 5) {
+    if (showPasswordDialog && paymentStep === 'password' && password.length < 5) {
       setPassword(prev => prev + num);
+    } else if (showPasswordDialog && paymentStep === 'amount') {
+      setPaymentAmount(prev => prev + num);
     } else if (showAdminDialog && adminPassword.length < 5) {
       setAdminPassword(prev => prev + num);
     }
   };
 
   const handleBackspace = () => {
-    if (showPasswordDialog) {
+    if (showPasswordDialog && paymentStep === 'password') {
       setPassword(prev => prev.slice(0, -1));
+    } else if (showPasswordDialog && paymentStep === 'amount') {
+      setPaymentAmount(prev => prev.slice(0, -1));
     } else if (showAdminDialog) {
       setAdminPassword(prev => prev.slice(0, -1));
     }
   };
 
   const handleClear = () => {
-    if (showPasswordDialog) {
+    if (showPasswordDialog && paymentStep === 'password') {
       setPassword('');
+    } else if (showPasswordDialog && paymentStep === 'amount') {
+      setPaymentAmount('');
     } else if (showAdminDialog) {
       setAdminPassword('');
     }
   };
 
+  useEffect(() => {
+    const savedLogsData = localStorage.getItem('savedLogs');
+    if (savedLogsData) setSavedLogs(JSON.parse(savedLogsData));
+  }, []);
+  
+  useEffect(() => {
+    localStorage.setItem('savedLogs', JSON.stringify(savedLogs));
+  }, [savedLogs]);
+  
   useEffect(() => {
     const savedUsers = localStorage.getItem('users');
     const savedTransactions = localStorage.getItem('transactions');
@@ -168,6 +193,72 @@ const PaymentSystem = () => {
     setUserStats(sortedStats);
   }, [transactions, users]);
 
+  const addToLog = (action, data) => {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      action,
+      data
+    };
+    setLogs(prevLogs => [...prevLogs, logEntry]);
+  };
+  
+  const createNewLog = () => {
+    if (newLogName.trim()) {
+      setCurrentLogName(newLogName);
+      setLogs([]);
+      setNewLogName('');
+      setShowCreateLogDialog(false);
+      
+      // Erstes Log-Eintrag für neue Session
+      addToLog('session_start', { name: newLogName, date: new Date().toISOString() });
+    }
+  };
+
+  const saveCurrentLog = () => {
+    if (currentLogName && logs.length > 0) {
+      // Berechne die Gesamteinnahmen für diesen Log
+      const totalIncome = logs
+        .filter(log => log.action === 'add_transaction' || log.action === 'add_round')
+        .reduce((sum, log) => sum + (log.data.totalPrice || log.data.price), 0);
+      
+      const logData = {
+        name: currentLogName,
+        date: new Date().toISOString(),
+        entries: logs,
+        totalIncome: totalIncome
+      };
+      
+      setSavedLogs(prev => ({
+        ...prev,
+        [currentLogName]: logData
+      }));
+      
+      alert(`Log "${currentLogName}" gespeichert!`);
+    }
+  };
+  
+  const loadLog = (logName) => {
+    if (savedLogs[logName]) {
+      setLogs(savedLogs[logName].entries);
+      setCurrentLogName(logName);
+      setSelectedLog(logName);
+      setShowSavedLogsDialog(false);
+    }
+  };
+  
+  const deleteLog = (logName) => {
+    if (confirm(`Möchten Sie wirklich "${logName}" löschen?`)) {
+      const newSavedLogs = { ...savedLogs };
+      delete newSavedLogs[logName];
+      setSavedLogs(newSavedLogs);
+      
+      if (currentLogName === logName) {
+        setLogs([]);
+        setCurrentLogName('');
+      }
+    }
+  };
+
   const [drinks, setDrinks] = useState([
     { id: 1, name: 'Bier', price: 2.00 },
     { id: 2, name: 'Schnaps', price: 2.00 },
@@ -179,18 +270,33 @@ const PaymentSystem = () => {
     if (password === CORRECT_PASSWORD) {
       const updatedUsers = users.map(user => {
         if (user.id === pendingUserId) {
-          return { ...user, balance: 0 };
+          // Nur den ausgewählten Betrag abziehen
+          const newBalance = Math.max(0, user.balance - parseInt(paymentAmount));
+          return { ...user, balance: newBalance };
         }
         return user;
       });
+      
       setUsers(updatedUsers);
       if (selectedUser && selectedUser.id === pendingUserId) {
-        setSelectedUser({ ...selectedUser, balance: 0 });
+        const newBalance = Math.max(0, selectedUser.balance - parseInt(paymentAmount));
+        setSelectedUser({ ...selectedUser, balance: newBalance });
       }
+      
+      // Füge Zahlung zum Log hinzu
+      const user = users.find(u => u.id === pendingUserId);
+      addToLog('payment', {
+        userName: user.name,
+        amount: parseInt(paymentAmount),
+        date: new Date().toISOString()
+      });
+      
       setShowPasswordDialog(false);
       setPendingUserId(null);
       setPassword('');
+      setPaymentAmount('');
       setErrorMessage('');
+      setPaymentStep('amount');
     } else {
       setErrorMessage('Falsches Passwort');
       setPassword('');
@@ -243,19 +349,45 @@ const PaymentSystem = () => {
       setUsers(updatedUsers);
       setSelectedUser({ ...selectedUser, balance: selectedUser.balance + selectedDrink.price });
       
+      // Füge Transaktion zum Log hinzu
+      addToLog('add_transaction', {
+        userName: selectedUser.name,
+        drinkName: selectedDrink.name,
+        price: selectedDrink.price,
+        date: new Date().toISOString()
+      });
+      
       // Reset dialog states
       setShowConfirmDialog(false);
       setSelectedDrink(null);
       setView('users');
-
     }
   };
 
   const initiateSettlePayment = (userId, e) => {
     e.stopPropagation();
     setPendingUserId(userId);
+    setPaymentStep('amount');
+    const user = users.find(u => u.id === userId);
+    setPaymentAmount(Math.floor(user.balance).toString()); // Nur volle Zahlen
     setShowPasswordDialog(true);
     setPassword('');
+    setErrorMessage('');
+  };
+
+  const confirmAmount = () => {
+    if (isNaN(parseInt(paymentAmount)) || parseInt(paymentAmount) <= 0) {
+      setErrorMessage('Bitte geben Sie einen gültigen Betrag ein');
+      return;
+    }
+    
+    const user = users.find(u => u.id === pendingUserId);
+    if (parseInt(paymentAmount) > user.balance) {
+      setErrorMessage('Der Betrag kann nicht größer als das Guthaben sein');
+      return;
+    }
+    
+    setPaymentStep('password');
     setErrorMessage('');
   };
 
@@ -310,7 +442,7 @@ const PaymentSystem = () => {
       // Erstelle Transaktionen für jedes Getränk in der Runde
       const newTransactions = [];
       const totalPrice = roundDrink.price * roundQuantity;
-
+  
       // Erstelle die angegebene Anzahl an Transaktionen
       for (let i = 0; i < roundQuantity; i++) {
         newTransactions.push({
@@ -322,9 +454,9 @@ const PaymentSystem = () => {
           isRound: true
         });
       }
-
+  
       setTransactions([...transactions, ...newTransactions]);
-
+  
       // Update des Benutzerguthabens
       const updatedUsers = users.map(user => {
         if (user.id === selectedUser.id) {
@@ -332,10 +464,19 @@ const PaymentSystem = () => {
         }
         return user;
       });
-
+  
       setUsers(updatedUsers);
       setSelectedUser({ ...selectedUser, balance: selectedUser.balance + totalPrice });
-
+      
+      // Füge Runde zum Log hinzu
+      addToLog('add_round', {
+        userName: selectedUser.name,
+        drinkName: roundDrink.name,
+        quantity: roundQuantity,
+        totalPrice: totalPrice,
+        date: new Date().toISOString()
+      });
+  
       // Reset der Dialog-States
       setShowRoundDialog(false);
       setRoundDrink(null);
@@ -350,18 +491,6 @@ const PaymentSystem = () => {
     setRoundDrink(null);
     setRoundQuantity(1);
     setRoundStep('select-drink');
-  };
-
-  const verifyAdminPassword = () => {
-    if (adminPassword === ADMIN_PASSWORD) {
-      setShowAdminDialog(false);
-      setShowPriceEditDialog(true);
-      setAdminPassword('');
-      setAdminError('');
-    } else {
-      setAdminError('Falsches Passwort');
-      setAdminPassword('');
-    }
   };
 
   const updatePrice = () => {
@@ -379,6 +508,153 @@ const PaymentSystem = () => {
     
     setEditingDrink(null);
     setNewPrice('');
+  };
+
+  const verifyAdminPassword = () => {
+    if (adminPassword === ADMIN_PASSWORD) {
+      setShowAdminDialog(false);
+      // Hier können Sie entscheiden, welcher Dialog angezeigt werden soll
+      // entweder Preisbearbeitung oder Log-Verwaltung
+      setShowPriceEditDialog(true);
+      setAdminPassword('');
+      setAdminError('');
+    } else {
+      setAdminError('Falsches Passwort');
+      setAdminPassword('');
+    }
+  };
+
+  const adminOptions = [
+    { id: 'prices', name: 'Preise bearbeiten' },
+    { id: 'logs', name: 'Log-Verwaltung' }
+  ];
+
+  const handleAdminOptionSelect = (optionId) => {
+    setShowAdminDialog(false);
+    if (optionId === 'prices') {
+      setShowPriceEditDialog(true);
+    } else if (optionId === 'logs') {
+      setShowLogDialog(true);
+    }
+  };
+
+  const LogView = () => {
+    if (!currentLogName) {
+      return (
+        <div className="text-center p-6">
+          <p className="mb-4">Kein aktives Log. Bitte erstellen Sie ein neues Log oder laden Sie ein gespeichertes.</p>
+          <div className="flex justify-center gap-4">
+            <button 
+              onClick={() => setShowCreateLogDialog(true)}
+              className="px-4 py-2 bg-blue-500 text-white rounded"
+            >
+              Neues Log erstellen
+            </button>
+            <button 
+              onClick={() => setShowSavedLogsDialog(true)}
+              className="px-4 py-2 bg-gray-200 rounded"
+            >
+              Gespeicherte Logs
+            </button>
+          </div>
+        </div>
+      );
+    }
+  
+    return (
+      <div className="p-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-semibold">Log: {currentLogName}</h3>
+          <div className="flex gap-2">
+            <button 
+              onClick={saveCurrentLog}
+              className="px-4 py-2 bg-green-500 text-white rounded"
+            >
+              Speichern
+            </button>
+            <button 
+              onClick={() => setShowSavedLogsDialog(true)}
+              className="px-4 py-2 bg-blue-500 text-white rounded"
+            >
+              Logs laden
+            </button>
+          </div>
+        </div>
+        
+        <div className="bg-gray-100 p-4 rounded-lg mb-4">
+          <div className="overflow-y-auto max-h-96 p-2">
+            {logs.length === 0 ? (
+              <p className="text-center text-gray-500">Keine Einträge</p>
+            ) : (
+              logs.map((log, index) => {
+                const date = new Date(log.timestamp);
+                const formattedTime = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                
+                return (
+                  <div key={index} className="mb-2 p-2 bg-white rounded shadow">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500">{formattedTime}</span>
+                      <span className="text-sm font-medium">
+                        {log.action === 'session_start' && 'Session gestartet'}
+                        {log.action === 'add_transaction' && 'Getränkekauf'}
+                        {log.action === 'add_round' && 'Runde ausgegeben'}
+                        {log.action === 'payment' && 'Zahlung'}
+                      </span>
+                    </div>
+                    <div className="mt-1">
+                      {log.action === 'session_start' && (
+                        <p>Neue Session "{log.data.name}" gestartet</p>
+                      )}
+                      {log.action === 'add_transaction' && (
+                        <p>
+                          <span className="font-medium">{log.data.userName}</span> kaufte <span className="font-medium">{log.data.drinkName}</span> für <span className="font-medium">{log.data.price.toFixed(2)}€</span>
+                        </p>
+                      )}
+                      {log.action === 'add_round' && (
+                        <p>
+                          <span className="font-medium">{log.data.userName}</span> gab eine Runde aus: <span className="font-medium">{log.data.quantity}x {log.data.drinkName}</span> für <span className="font-medium">{log.data.totalPrice.toFixed(2)}€</span>
+                        </p>
+                      )}
+                      {log.action === 'payment' && (
+                        <p>
+                          <span className="font-medium">{log.data.userName}</span> zahlte <span className="font-medium">{log.data.amount}€</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+        
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h4 className="font-medium mb-2">Zusammenfassung</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm">Gesamteinnahmen:</p>
+              <p className="text-2xl font-bold">
+                {logs
+                  .filter(log => log.action === 'add_transaction' || log.action === 'add_round')
+                  .reduce((sum, log) => sum + (log.data.totalPrice || log.data.price), 0)
+                  .toFixed(2)}€
+              </p>
+            </div>
+            <div>
+              <p className="text-sm">Anzahl Getränke:</p>
+              <p className="text-2xl font-bold">
+                {logs
+                  .filter(log => log.action === 'add_transaction')
+                  .length +
+                  logs
+                  .filter(log => log.action === 'add_round')
+                  .reduce((sum, log) => sum + log.data.quantity, 0)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -467,8 +743,99 @@ const PaymentSystem = () => {
           </div>
         </div>
       </Dialog>
+      
+      <Dialog 
+  open={showAdminDialog} 
+  onClose={() => {
+    setShowAdminDialog(false);
+    setAdminPassword('');
+    setAdminError('');
+  }}
+>
+  <div className="p-6">
+    <h2 className="text-2xl font-semibold mb-4">Admin-Bereich</h2>
+    {adminError && (
+      <p className="text-red-500 mb-4">{adminError}</p>
+    )}
+    <div className="mb-4">
+      <input
+        type="password"
+        value={adminPassword}
+        readOnly
+        placeholder="Admin Passwort"
+        className="w-full p-2 border border-gray-300 rounded"
+      />
+    </div>
+    <div className="flex justify-center">
+      <Numpad />
+    </div>
+    <div className="flex justify-end gap-4">
+      <button 
+        onClick={() => {
+          setShowAdminDialog(false);
+          setAdminPassword('');
+          setAdminError('');
+        }}
+        className="px-4 py-2 bg-gray-200 rounded mt-4"
+      >
+        Abbrechen
+      </button>
+      
+      <button 
+        onClick={verifyAdminPassword}
+        className="px-4 py-2 bg-blue-500 text-white rounded mt-4"
+      >
+        Bestätigen
+      </button>
+    </div>
+  </div>
+</Dialog>
 
+<Dialog open={showLogDialog} onClose={() => setShowLogDialog(false)}>
+  <div className="p-6 w-full max-w-4xl">
+    <h2 className="text-2xl font-semibold mb-4">Transaktions-Log</h2>
+    <LogView />
+    <div className="flex justify-end mt-4">
+      <button
+        onClick={() => setShowLogDialog(false)}
+        className="px-4 py-2 bg-gray-200 rounded"
+      >
+        Schließen
+      </button>
+    </div>
+  </div>
+</Dialog>
 
+<Dialog open={showCreateLogDialog} onClose={() => setShowCreateLogDialog(false)}>
+  <div className="p-6">
+    <h2 className="text-lg font-semibold mb-2">Neues Log erstellen</h2>
+    <div className="mb-4">
+      <label className="block text-sm font-medium mb-1">Log-Name (z.B. "Sommerparty 2025")</label>
+      <input
+        type="text"
+        value={newLogName}
+        onChange={(e) => setNewLogName(e.target.value)}
+        placeholder="Log-Name eingeben"
+        className="w-full p-2 border border-gray-300 rounded"
+      />
+    </div>
+    <div className="flex justify-end gap-2">
+      <button
+        onClick={() => setShowCreateLogDialog(false)}
+        className="px-4 py-2 bg-gray-200 rounded"
+      >
+        Abbrechen
+      </button>
+      <button
+        onClick={createNewLog}
+        className="px-4 py-2 bg-blue-500 text-white rounded"
+      >
+        Erstellen
+      </button>
+    </div>
+  </div>
+
+</Dialog>
       {/* Price Edit Dialog */}
       <Dialog 
         open={showPriceEditDialog} 
@@ -760,6 +1127,113 @@ const PaymentSystem = () => {
               className="px-4 py-2 bg-blue-500 text-white rounded"
             >
               Bestätigen
+            </button>
+          </div>
+        </div>
+      </Dialog>
+      
+      <Dialog 
+        open={showPasswordDialog} 
+        onClose={() => {
+          setShowPasswordDialog(false);
+          setPassword('');
+          setPaymentAmount('');
+          setErrorMessage('');
+          setPaymentStep('amount');
+        }}
+      >
+        <div className="space-y-4 p-6 bg-gray-100">
+          {paymentStep === 'amount' ? (
+            <>
+              <h2 className="text-lg font-semibold">Zahlungsbetrag festlegen</h2>
+              <p>Wie viel soll von der Rechnung abgezogen werden?</p>
+              {errorMessage && <p className="text-red-500">{errorMessage}</p>}
+              <div className="w-full bg-white rounded-lg p-4 mb-4 text-center">
+                <span className="text-2xl font-semibold">{paymentAmount ? paymentAmount + '€' : '0€'}</span>
+              </div>
+              <div className="flex justify-center">
+                <Numpad />
+              </div>
+              <div className="flex justify-center gap-2 mt-4">
+                <button
+                  onClick={() => {
+                    setShowPasswordDialog(false);
+                    setPaymentAmount('');
+                    setErrorMessage('');
+                    setPaymentStep('amount');
+                  }}
+                  className="px-4 py-4 bg-gray-300 rounded"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  onClick={confirmAmount}
+                  className="px-4 py-4 bg-customGray text-white rounded"
+                >
+                  Weiter
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-lg font-semibold">Passwort erforderlich</h2>
+              <p>Bitte geben Sie das Passwort ein, um {paymentAmount}€ abzuziehen.</p>
+              {errorMessage && <p className="text-red-500">{errorMessage}</p>}
+              <div className="w-full bg-white rounded-lg p-2 mb-4 text-center">
+                <span className="text-xl">{password.replace(/./g, '•')}</span> 
+              </div>
+              <div className="flex justify-center">
+                <Numpad />
+              </div>
+              <div className="flex justify-center gap-2 mt-4">
+                <button
+                  onClick={() => setPaymentStep('amount')}
+                  className="px-4 py-4 bg-gray-300 rounded"
+                >
+                  Zurück
+                </button>
+                <button
+                  onClick={handlePasswordSubmit}
+                  className="px-4 py-4 bg-customGray text-white rounded"
+                >
+                  Bestätigen
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </Dialog>
+      
+      <Dialog 
+        open={showAdminDialog && adminPassword === ADMIN_PASSWORD} 
+        onClose={() => {
+          setShowAdminDialog(false);
+          setAdminPassword('');
+          setAdminError('');
+        }}
+      >
+        <div className="p-6">
+          <h2 className="text-2xl font-semibold mb-6">Admin-Optionen</h2>
+          <div className="grid grid-cols-1 gap-4">
+            {adminOptions.map(option => (
+              <button
+                key={option.id}
+                onClick={() => handleAdminOptionSelect(option.id)}
+                className="px-6 py-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-left font-medium"
+              >
+                {option.name}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-end mt-6">
+            <button 
+              onClick={() => {
+                setShowAdminDialog(false);
+                setAdminPassword('');
+              }}
+              className="px-4 py-2 bg-gray-200 rounded"
+            >
+              Abbrechen
             </button>
           </div>
         </div>
