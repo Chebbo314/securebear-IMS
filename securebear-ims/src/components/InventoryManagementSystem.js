@@ -115,8 +115,53 @@ const PaymentSystem = () => {
   const [showSavedLogsDialog, setShowSavedLogsDialog] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
 
+  const [paymentMode, setPaymentMode] = useState('withdraw'); // 'withdraw' oder 'deposit'
+  const [showBudgetDialog, setShowBudgetDialog] = useState(false);
+  const [budgetAmount, setBudgetAmount] = useState('');
+
   const CORRECT_PASSWORD = '86859';
   const ADMIN_PASSWORD = '86859';
+
+  const addBudgetToUser = () => {
+    if (isNaN(parseInt(budgetAmount)) || parseInt(budgetAmount) <= 0) {
+      setErrorMessage('Bitte geben Sie einen gültigen Betrag ein');
+      return;
+    }
+
+    const updatedUsers = users.map(user => {
+      if (user.id === pendingUserId) {
+        // Ziehe den Betrag vom Guthaben ab (kann auch negativ werden)
+        return { ...user, balance: user.balance - parseInt(budgetAmount) };
+      }
+      return user;
+    });
+
+    setUsers(updatedUsers);
+    if (selectedUser && selectedUser.id === pendingUserId) {
+      setSelectedUser({ ...selectedUser, balance: selectedUser.balance - parseInt(budgetAmount) });
+    }
+
+    // Füge Budget-Eintrag zum Log hinzu
+    const user = users.find(u => u.id === pendingUserId);
+    addToLog('add_budget', {
+      userName: user.name,
+      amount: parseInt(budgetAmount),
+      date: new Date().toISOString()
+    });
+
+    setShowBudgetDialog(false);
+    setPendingUserId(null);
+    setBudgetAmount('');
+    setErrorMessage('');
+  }
+
+  const initiateBudgetAddition = (userId, e) => {
+    e.stopPropagation();
+    setPendingUserId(userId);
+    setBudgetAmount('');
+    setShowBudgetDialog(true);
+    setErrorMessage('');
+  };
 
   const handleNumpadClick = (num) => {
     if (showPasswordDialog && paymentStep === 'password' && password.length < 5) {
@@ -125,7 +170,10 @@ const PaymentSystem = () => {
       setPaymentAmount(prev => prev + num);
     } else if (showAdminDialog && adminPassword.length < 5) {
       setAdminPassword(prev => prev + num);
+    } else if (showBudgetDialog) {
+      setBudgetAmount(prev => prev + num);
     }
+
   };
 
   const handleBackspace = () => {
@@ -135,6 +183,8 @@ const PaymentSystem = () => {
       setPaymentAmount(prev => prev.slice(0, -1));
     } else if (showAdminDialog) {
       setAdminPassword(prev => prev.slice(0, -1));
+    } else if (showBudgetDialog) {
+      setBudgetAmount(prev => prev.slice(0, -1));
     }
   };
 
@@ -145,6 +195,8 @@ const PaymentSystem = () => {
       setPaymentAmount('');
     } else if (showAdminDialog) {
       setAdminPassword('');
+    } else if (showBudgetDialog) {
+      setBudgetAmount('')
     }
   };
 
@@ -537,6 +589,7 @@ const PaymentSystem = () => {
       setShowLogDialog(true);
     }
   };
+  
 
   const LogView = () => {
     if (!currentLogName) {
@@ -697,53 +750,6 @@ const PaymentSystem = () => {
         </div>
       </header>
       <Dialog 
-        open={showAdminDialog} 
-        onClose={() => {
-          setShowAdminDialog(false);
-          setAdminPassword('');
-          setAdminError('');
-        }}
-      >
-        <div className="p-6">
-          <h2 className="text-2xl font-semibold mb-4">Admin-Bereich</h2>
-          {adminError && (
-            <p className="text-red-500 mb-4">{adminError}</p>
-          )}
-          <div className="mb-4">
-            <input
-              type="password"
-              value={adminPassword}
-              readOnly
-              placeholder="Admin Passwort"
-              className="w-full p-2 border border-gray-300 rounded"
-            />
-          </div>
-          <div className="flex justify-center">
-            <Numpad />
-          </div>
-          <div className="flex justify-end gap-4">
-            <button 
-              onClick={() => {
-                setShowAdminDialog(false);
-                setAdminPassword('');
-                setAdminError('');
-              }}
-              className="px-4 py-2 bg-gray-200 rounded mt-4"
-            >
-              Abbrechen
-            </button>
-            
-            <button 
-              onClick={verifyAdminPassword}
-              className="px-4 py-2 bg-blue-500 text-white rounded mt-4"
-            >
-              Bestätigen
-            </button>
-          </div>
-        </div>
-      </Dialog>
-      
-      <Dialog 
   open={showAdminDialog} 
   onClose={() => {
     setShowAdminDialog(false);
@@ -809,7 +815,7 @@ const PaymentSystem = () => {
   <div className="p-6">
     <h2 className="text-lg font-semibold mb-2">Neues Log erstellen</h2>
     <div className="mb-4">
-      <label className="block text-sm font-medium mb-1">Log-Name (z.B. "Sommerparty 2025")</label>
+      <label className="block text-sm font-medium mb-1">Log-Name (z.B. "Goaßnfetz")</label>
       <input
         type="text"
         value={newLogName}
@@ -844,21 +850,21 @@ const PaymentSystem = () => {
           <h2 className="text-2xl font-semibold mb-6">Preise bearbeiten</h2>
           <div className="space-y-4">
             {drinks.map(drink => (
-              <div key={drink.id} className="flex items-center justify-between p-6 bg-gray-100 rounded">
-                <span className="text-lg mr-5">{drink.name}</span>
+              <div key={drink.id} className="flex items-center justify-between p-12 bg-gray-100 rounded">
+                <span className="text-2xl mr-5">{drink.name}</span>
                 {editingDrink?.id === drink.id ? (
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-10">
                     <input
                       type="number"
                       value={newPrice}
                       onChange={(e) => setNewPrice(e.target.value)}
-                      className="w-24 p-2 border border-gray-300 rounded"
+                      className="w-25 p-4 border border-gray-300 rounded text-4xl"
                       step="0.10"
                       min="0"
                     />
                     <button
                       onClick={updatePrice}
-                      className="px-3 py-2 bg-green-500 text-white rounded"
+                      className="px-6 py-4 bg-green-500 text-white rounded text-2xl"
                     >
                       ✓
                     </button>
@@ -867,7 +873,7 @@ const PaymentSystem = () => {
                         setEditingDrink(null);
                         setNewPrice('');
                       }}
-                      className="px-3 py-2 bg-red-500 text-white rounded"
+                      className="px-6 py-4 bg-red-500 text-white rounded text-2xl"
                     >
                       ×
                     </button>
@@ -1237,7 +1243,44 @@ const PaymentSystem = () => {
           </div>
         </div>
       </Dialog>
-
+      <Dialog 
+        open={showBudgetDialog} 
+        onClose={() => {
+          setShowBudgetDialog(false);
+          setBudgetAmount('');
+          setErrorMessage('');
+        }}
+      >
+        <div className="space-y-4 p-6 bg-gray-100">
+          <h2 className="text-lg font-semibold">Budget hinzufügen</h2>
+          <p>Bitte geben Sie den Betrag ein, der als Budget hinzugefügt werden soll:</p>
+          {errorMessage && <p className="text-red-500">{errorMessage}</p>}
+          <div className="w-full bg-white rounded-lg p-4 mb-4 text-center">
+            <span className="text-2xl font-semibold">{budgetAmount ? budgetAmount + '€' : '0€'}</span>
+          </div>
+          <div className="flex justify-center">
+            <Numpad />
+          </div>
+          <div className="flex justify-center gap-2 mt-4">
+            <button
+              onClick={() => {
+                setShowBudgetDialog(false);
+                setBudgetAmount('');
+                setErrorMessage('');
+              }}
+              className="px-4 py-4 bg-gray-300 rounded"
+            >
+              Abbrechen
+            </button>
+            <button
+              onClick={addBudgetToUser}
+              className="px-4 py-4 bg-green-500 text-white rounded"
+            >
+              Budget hinzufügen
+            </button>
+          </div>
+        </div>
+      </Dialog>
       {/* Bills View */}
       {view === 'bills' && (
         <div>
@@ -1246,13 +1289,25 @@ const PaymentSystem = () => {
           {users.map((user) => (
             <div key={user.id} className="flex justify-between items-center p-4 bg-gray-200 rounded-lg mb-4">
               <span>{user.name}</span>
-              <span>{user.balance.toFixed(2)}€</span>
-              <button
-                onClick={(e) => initiateSettlePayment(user.id, e)}
-                className="px-4 py-2 bg-blue-500 text-white rounded"
-              >
-                Ausgleichen
-              </button>
+              <span>
+                {user.balance >= 0
+                ? `-${user.balance.toFixed(2)}€`
+                : `${Math.abs(user.balance).toFixed(2)}€`} 
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => initiateSettlePayment(user.id, e)}
+                  className="px-4 py-2 bg-blue-500 text-white rounded"
+                >
+                  Ausgleichen
+                </button>
+                <button
+                  onClick={(e) => initiateBudgetAddition(user.id, e)}
+                  className="px-4 py-2 bg-green-500 text-white rounded"
+                >
+                  Aufstocken
+                </button>
+              </div>
             </div>
           ))}  
           </div>
