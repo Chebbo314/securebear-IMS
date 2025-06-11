@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
+const customStyles = `
+  .bg-customGray {
+    background-color: #6b7280;
+  }
+`;
+
 const TouchKeyboard = ({ onInput, onEnter }) => {
   const [isShift, setIsShift] = useState(false);
   
@@ -102,6 +108,14 @@ const PaymentSystem = () => {
   const [showPriceEditDialog, setShowPriceEditDialog] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [editingDrink, setEditingDrink] = useState(null);
+  const getCurrentMode = () => {
+    if (showPasswordDialog && paymentStep === 'password') return 'password';
+    if (showPasswordDialog && paymentStep === 'amount') return 'amount';
+    if (showAdminDialog) return 'admin';
+    if (showBudgetDialog) return 'budget';
+    if (showFreeAmountDialog) return 'freeAmount';
+    return 'default';
+  };
   const [newPrice, setNewPrice] = useState('');
   const [adminError, setAdminError] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -114,11 +128,11 @@ const PaymentSystem = () => {
   const [savedLogs, setSavedLogs] = useState({});
   const [showSavedLogsDialog, setShowSavedLogsDialog] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
-
   const [paymentMode, setPaymentMode] = useState('withdraw'); // 'withdraw' oder 'deposit'
   const [showBudgetDialog, setShowBudgetDialog] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState('');
-
+  const [showFreeAmountDialog, setShowFreeAmountDialog] = useState(false);
+  const [freeAmount, setFreeAmount] = useState('');
   const CORRECT_PASSWORD = '86859';
   const ADMIN_PASSWORD = '86859';
 
@@ -164,28 +178,29 @@ const PaymentSystem = () => {
   };
 
   const handleNumpadClick = (num) => {
-    if (showPasswordDialog && paymentStep === 'password' && password.length < 5) {
-      setPassword(prev => prev + num);
-    } else if (showPasswordDialog && paymentStep === 'amount') {
-      setPaymentAmount(prev => prev + num);
-    } else if (showAdminDialog && adminPassword.length < 5) {
-      setAdminPassword(prev => prev + num);
-    } else if (showBudgetDialog) {
-      setBudgetAmount(prev => prev + num);
-    }
+    const actions = {
+      password: () => password.length < 5 && setPassword(prev => prev + num),
+      amount: () => setPaymentAmount(prev => prev + num),
+      admin: () => adminPassword.length < 5 && setAdminPassword(prev => prev + num),
+      budget: () => setBudgetAmount(prev => prev + num),
+      freeAmount: () => setFreeAmount(prev => prev + num)
+    };
 
+    const currentMode = getCurrentMode();
+    actions[currentMode]?.();
   };
 
   const handleBackspace = () => {
-    if (showPasswordDialog && paymentStep === 'password') {
-      setPassword(prev => prev.slice(0, -1));
-    } else if (showPasswordDialog && paymentStep === 'amount') {
-      setPaymentAmount(prev => prev.slice(0, -1));
-    } else if (showAdminDialog) {
-      setAdminPassword(prev => prev.slice(0, -1));
-    } else if (showBudgetDialog) {
-      setBudgetAmount(prev => prev.slice(0, -1));
-    }
+    const actions = {
+      password: () => setPassword(prev => prev.slice(0, -1)),
+      amount: () => setPaymentAmount(prev => prev.slice(0, -1)),
+      admin: () => setAdminPassword(prev => prev.slice(0, -1)),
+      budget: () => setBudgetAmount(prev => prev.slice(0, -1)),
+      freeAmount: () => setFreeAmount(prev => prev.slice(0, -1))
+    };
+  
+    const currentMode = getCurrentMode();
+    actions[currentMode]?.();
   };
 
   const handleClear = () => {
@@ -196,7 +211,9 @@ const PaymentSystem = () => {
     } else if (showAdminDialog) {
       setAdminPassword('');
     } else if (showBudgetDialog) {
-      setBudgetAmount('')
+      setBudgetAmount('');
+    } else if (showFreeAmountDialog) {  // Diese Zeile hinzufügen
+      setFreeAmount('');
     }
   };
 
@@ -298,17 +315,46 @@ const PaymentSystem = () => {
     }
   };
   
-  const deleteLog = (logName) => {
-    if (confirm(`Möchten Sie wirklich "${logName}" löschen?`)) {
-      const newSavedLogs = { ...savedLogs };
-      delete newSavedLogs[logName];
-      setSavedLogs(newSavedLogs);
-      
-      if (currentLogName === logName) {
-        setLogs([]);
-        setCurrentLogName('');
+  const addFreeAmountToUser = () => {
+  if (isNaN(parseInt(freeAmount)) || parseInt(freeAmount) <= 0) {
+    setErrorMessage('Bitte geben Sie einen gültigen Betrag ein');
+    return;
+  }
+
+    const updatedUsers = users.map(user => {
+      if (user.id === pendingUserId) {
+        // Füge den Betrag zum Guthaben hinzu (erhöht die Schulden)
+        return { ...user, balance: user.balance + parseInt(freeAmount) };
       }
+      return user;
+    });
+
+    setUsers(updatedUsers);
+    if (selectedUser && selectedUser.id === pendingUserId) {
+      setSelectedUser({ ...selectedUser, balance: selectedUser.balance + parseInt(freeAmount) });
     }
+
+    // Füge Freibetrag-Eintrag zum Log hinzu
+    const user = users.find(u => u.id === pendingUserId);
+    addToLog('add_free_amount', {
+      userName: user.name,
+      amount: parseInt(freeAmount),
+      date: new Date().toISOString()
+    });
+
+    setShowFreeAmountDialog(false);
+    setPendingUserId(null);
+    setFreeAmount('');
+    setErrorMessage('');
+  };
+
+  // 2. Neue Funktion für Freibetrag initialisieren (nach initiateBudgetAddition)
+  const initiateFreeAmountAddition = (userId, e) => {
+    e.stopPropagation();
+    setPendingUserId(userId);
+    setFreeAmount('');
+    setShowFreeAmountDialog(true);
+    setErrorMessage('');
   };
 
   const [drinks, setDrinks] = useState([
@@ -1295,6 +1341,50 @@ const PaymentSystem = () => {
                 : `${Math.abs(user.balance).toFixed(2)}€`} 
               </span>
               <div className="flex gap-2">
+                <button
+                  onClick={(e) => initiateFreeAmountAddition(user.id, e)}
+                  className="px-4 py-2 bg-orange-500 text-white rounded"
+                >
+                  Freibetrag
+                </button>
+                <Dialog 
+                  open={showFreeAmountDialog} 
+                  onClose={() => {
+                    setShowFreeAmountDialog(false);
+                    setFreeAmount('');
+                    setErrorMessage('');
+                  }}
+                >
+                  <div className="space-y-4 p-6 bg-gray-100">
+                    <h2 className="text-lg font-semibold">Freibetrag hinzufügen</h2>
+                    <p>Bitte geben Sie den Freibetrag ein:</p>
+                    {errorMessage && <p className="text-red-500">{errorMessage}</p>}
+                    <div className="w-full bg-white rounded-lg p-4 mb-4 text-center">
+                      <span className="text-2xl font-semibold">{freeAmount ? freeAmount + '€' : '0€'}</span>
+                    </div>
+                    <div className="flex justify-center">
+                      <Numpad />
+                    </div>
+                    <div className="flex justify-center gap-2 mt-4">
+                      <button
+                        onClick={() => {
+                          setShowFreeAmountDialog(false);
+                          setFreeAmount('');
+                          setErrorMessage('');
+                        }}
+                        className="px-4 py-4 bg-gray-300 rounded"
+                      >
+                        Abbrechen
+                      </button>
+                      <button
+                        onClick={addFreeAmountToUser}
+                        className="px-4 py-4 bg-orange-500 text-white rounded"
+                      >
+                        Freibetrag hinzufügen
+                      </button>
+                    </div>
+                  </div>
+                </Dialog>
                 <button
                   onClick={(e) => initiateSettlePayment(user.id, e)}
                   className="px-4 py-2 bg-blue-500 text-white rounded"
