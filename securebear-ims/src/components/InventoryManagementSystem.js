@@ -1331,7 +1331,7 @@ const PaymentSystem = () => {
       {view === 'bills' && (
         <div>
           <h2 className="text-3xl font-semibold mb-10 mr-5 ml-5">Abrechnungen</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto mr-5 ml-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 max-h-96 overflow-y-auto mr-5 ml-5">
           {users.map((user) => (
             <div key={user.id} className="flex justify-between items-center p-4 bg-gray-200 rounded-lg mb-4">
               <span>{user.name}</span>
