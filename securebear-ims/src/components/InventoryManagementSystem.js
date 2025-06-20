@@ -112,7 +112,8 @@ const PaymentSystem = () => {
     if (showPasswordDialog && paymentStep === 'password') return 'password';
     if (showPasswordDialog && paymentStep === 'amount') return 'amount';
     if (showAdminDialog) return 'admin';
-    if (showBudgetDialog) return 'budget';
+    if (showBudgetDialog && budgetStep === 'password') return 'budgetPassword'; // Neue Zeile
+    if (showBudgetDialog && budgetStep === 'amount') return 'budget';
     if (showFreeAmountDialog) return 'freeAmount';
     return 'default';
   };
@@ -133,48 +134,55 @@ const PaymentSystem = () => {
   const [budgetAmount, setBudgetAmount] = useState('');
   const [showFreeAmountDialog, setShowFreeAmountDialog] = useState(false);
   const [freeAmount, setFreeAmount] = useState('');
+  const [budgetPassword, setBudgetPassword] = useState('');
+  const [budgetStep, setBudgetStep] = useState('amount');
+  const [budgetError, setBudgetError] = useState('');
   const CORRECT_PASSWORD = '86859';
   const ADMIN_PASSWORD = '86859';
 
   const addBudgetToUser = () => {
-    if (isNaN(parseInt(budgetAmount)) || parseInt(budgetAmount) <= 0) {
-      setErrorMessage('Bitte geben Sie einen gültigen Betrag ein');
-      return;
-    }
+    if (budgetPassword === CORRECT_PASSWORD) {
+      const updatedUsers = users.map(user => {
+        if (user.id === pendingUserId) {
+          return { ...user, balance: user.balance - parseInt(budgetAmount) };
+        }
+        return user;
+      });
 
-    const updatedUsers = users.map(user => {
-      if (user.id === pendingUserId) {
-        // Ziehe den Betrag vom Guthaben ab (kann auch negativ werden)
-        return { ...user, balance: user.balance - parseInt(budgetAmount) };
+      setUsers(updatedUsers);
+      if (selectedUser && selectedUser.id === pendingUserId) {
+        setSelectedUser({ ...selectedUser, balance: selectedUser.balance - parseInt(budgetAmount) });
       }
-      return user;
-    });
 
-    setUsers(updatedUsers);
-    if (selectedUser && selectedUser.id === pendingUserId) {
-      setSelectedUser({ ...selectedUser, balance: selectedUser.balance - parseInt(budgetAmount) });
+      // Füge Budget-Eintrag zum Log hinzu
+      const user = users.find(u => u.id === pendingUserId);
+      addToLog('add_budget', {
+        userName: user.name,
+        amount: parseInt(budgetAmount),
+        date: new Date().toISOString()
+      });
+
+      // Reset aller States
+      setShowBudgetDialog(false);
+      setPendingUserId(null);
+      setBudgetAmount('');
+      setBudgetPassword('');
+      setBudgetStep('amount');
+      setBudgetError('');
+    } else {
+      setBudgetError('Falsches Passwort');
+      setBudgetPassword('');
     }
-
-    // Füge Budget-Eintrag zum Log hinzu
-    const user = users.find(u => u.id === pendingUserId);
-    addToLog('add_budget', {
-      userName: user.name,
-      amount: parseInt(budgetAmount),
-      date: new Date().toISOString()
-    });
-
-    setShowBudgetDialog(false);
-    setPendingUserId(null);
-    setBudgetAmount('');
-    setErrorMessage('');
-  }
+  };
 
   const initiateBudgetAddition = (userId, e) => {
     e.stopPropagation();
     setPendingUserId(userId);
     setBudgetAmount('');
+    setBudgetPassword('');
+    setBudgetStep('amount');
     setShowBudgetDialog(true);
-    setErrorMessage('');
+    setBudgetError('');
   };
 
   const handleNumpadClick = (num) => {
@@ -183,6 +191,7 @@ const PaymentSystem = () => {
       amount: () => setPaymentAmount(prev => prev + num),
       admin: () => adminPassword.length < 5 && setAdminPassword(prev => prev + num),
       budget: () => setBudgetAmount(prev => prev + num),
+      budgetPassword: () => budgetPassword.length < 5 && setBudgetPassword(prev => prev + num), // Neue Zeile
       freeAmount: () => setFreeAmount(prev => prev + num)
     };
 
@@ -196,9 +205,10 @@ const PaymentSystem = () => {
       amount: () => setPaymentAmount(prev => prev.slice(0, -1)),
       admin: () => setAdminPassword(prev => prev.slice(0, -1)),
       budget: () => setBudgetAmount(prev => prev.slice(0, -1)),
+      budgetPassword: () => setBudgetPassword(prev => prev.slice(0, -1)), // Neue Zeile
       freeAmount: () => setFreeAmount(prev => prev.slice(0, -1))
     };
-  
+
     const currentMode = getCurrentMode();
     actions[currentMode]?.();
   };
@@ -210,9 +220,11 @@ const PaymentSystem = () => {
       setPaymentAmount('');
     } else if (showAdminDialog) {
       setAdminPassword('');
-    } else if (showBudgetDialog) {
+    } else if (showBudgetDialog && budgetStep === 'password') {
+      setBudgetPassword(''); // Neue Zeile
+    } else if (showBudgetDialog && budgetStep === 'amount') {
       setBudgetAmount('');
-    } else if (showFreeAmountDialog) {  // Diese Zeile hinzufügen
+    } else if (showFreeAmountDialog) {
       setFreeAmount('');
     }
   };
@@ -423,6 +435,16 @@ const PaymentSystem = () => {
       setSelectedDrink(drink);
       setShowConfirmDialog(true); // Open confirmation dialog
     }
+  };
+
+  const confirmBudgetAmount = () => {
+    if (isNaN(parseInt(budgetAmount)) || parseInt(budgetAmount) <= 0) {
+      setBudgetError('Bitte geben Sie einen gültigen Betrag ein');
+      return;
+    }
+
+    setBudgetStep('password');
+    setBudgetError('');
   };
 
   const confirmAddTransaction = () => {
@@ -1290,17 +1312,21 @@ const PaymentSystem = () => {
         </div>
       </Dialog>
       <Dialog 
-        open={showBudgetDialog} 
-        onClose={() => {
-          setShowBudgetDialog(false);
-          setBudgetAmount('');
-          setErrorMessage('');
-        }}
-      >
-        <div className="space-y-4 p-6 bg-gray-100">
+  open={showBudgetDialog} 
+  onClose={() => {
+    setShowBudgetDialog(false);
+    setBudgetAmount('');
+    setBudgetPassword('');
+    setBudgetStep('amount');
+    setBudgetError('');
+  }}
+>
+  <div className="space-y-4 p-6 bg-gray-100">
+    {budgetStep === 'amount' ? (
+        <>
           <h2 className="text-lg font-semibold">Budget hinzufügen</h2>
           <p>Bitte geben Sie den Betrag ein, der als Budget hinzugefügt werden soll:</p>
-          {errorMessage && <p className="text-red-500">{errorMessage}</p>}
+          {budgetError && <p className="text-red-500">{budgetError}</p>}
           <div className="w-full bg-white rounded-lg p-4 mb-4 text-center">
             <span className="text-2xl font-semibold">{budgetAmount ? budgetAmount + '€' : '0€'}</span>
           </div>
@@ -1312,11 +1338,38 @@ const PaymentSystem = () => {
               onClick={() => {
                 setShowBudgetDialog(false);
                 setBudgetAmount('');
-                setErrorMessage('');
+                setBudgetError('');
+                setBudgetStep('amount');
               }}
               className="px-4 py-4 bg-gray-300 rounded"
             >
               Abbrechen
+            </button>
+            <button
+              onClick={confirmBudgetAmount}
+              className="px-4 py-4 bg-green-500 text-white rounded"
+            >
+              Weiter
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <h2 className="text-lg font-semibold">Passwort erforderlich</h2>
+          <p>Bitte geben Sie das Passwort ein, um {budgetAmount}€ als Budget hinzuzufügen.</p>
+          {budgetError && <p className="text-red-500">{budgetError}</p>}
+          <div className="w-full bg-white rounded-lg p-2 mb-4 text-center">
+            <span className="text-xl">{budgetPassword.replace(/./g, '•')}</span>
+          </div>
+          <div className="flex justify-center">
+            <Numpad />
+          </div>
+          <div className="flex justify-center gap-2 mt-4">
+            <button
+              onClick={() => setBudgetStep('amount')}
+              className="px-4 py-4 bg-gray-300 rounded"
+            >
+              Zurück
             </button>
             <button
               onClick={addBudgetToUser}
@@ -1325,8 +1378,10 @@ const PaymentSystem = () => {
               Budget hinzufügen
             </button>
           </div>
-        </div>
-      </Dialog>
+        </>
+      )}
+    </div>
+  </Dialog>
       {/* Bills View */}
       {view === 'bills' && (
         <div>
