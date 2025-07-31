@@ -127,9 +127,9 @@ const PaymentSystem = () => {
   const [showCreateLogDialog, setShowCreateLogDialog] = useState(false);
   const [newLogName, setNewLogName] = useState('');
   const [savedLogs, setSavedLogs] = useState({});
-  const [showSavedLogsDialog, setShowSavedLogsDialog] = useState(false);
-  const [selectedLog, setSelectedLog] = useState(null);
-  const [paymentMode, setPaymentMode] = useState('withdraw'); // 'withdraw' oder 'deposit'
+  const [showEditUser, setShowEditUser] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editUserName, setEditUserName] = useState('');
   const [showBudgetDialog, setShowBudgetDialog] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState('');
   const [showFreeAmountDialog, setShowFreeAmountDialog] = useState(false);
@@ -423,7 +423,35 @@ const PaymentSystem = () => {
       setNewUserName('');
       setShowAddUser(false);
     }
-  }; 
+  };
+  
+  const editUser = () => {
+    if (editUserName.trim() && editingUser) {
+      const updatedUsers = users.map(user => 
+        user.id === editingUser.id 
+          ? { ...user, name: editUserName.trim() }
+          : user
+      );
+      setUsers(updatedUsers);
+
+      // Update selectedUser if it's the one being edited
+      if (selectedUser && selectedUser.id === editingUser.id) {
+        setSelectedUser({ ...selectedUser, name: editUserName.trim() });
+      }
+
+      setEditUserName('');
+      setEditingUser(null);
+      setShowEditUser(false);
+    }
+  };
+
+  const initiateEditUser = () => {
+    if (selectedUser) {
+      setEditingUser(selectedUser);
+      setEditUserName(selectedUser.name);
+      setShowEditUser(true);
+    }
+  };
   
   const removeUser = (userId) => {
     setUsers(users.filter(user => user.id !== userId));
@@ -784,16 +812,16 @@ const PaymentSystem = () => {
         <div className="">
           <h1 className="text-5xl font-bold text-gray-900">Z-IT.</h1>
         </div>
-        <div className="flex gap-6 mb-10 text-xl justify-center">
+        <div className="flex gap-6 mb-10 text-l justify-center">
           <button 
             onClick={() => setView('users')}
-            className={`px-14 py-6 rounded ${view === 'users' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
+            className={`px-12 py-6 rounded ${view === 'users' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
           >
             Benutzer
           </button>
           <button 
             onClick={() => setView('drinks')}
-            className={`px-14 py-6 rounded ${view === 'drinks' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
+            className={`px-12 py-6 rounded ${view === 'drinks' ? 'bg-customGray text-white' : 'bg-gray-200'}`}
           >
             Getränke
           </button>
@@ -1035,6 +1063,17 @@ const PaymentSystem = () => {
             >
               Add User
             </button>
+            <button
+              onClick={initiateEditUser}
+              disabled={!selectedUser}
+              className={`mt-auto px-12 py-4 rounded tracking-wide ${
+                selectedUser 
+                  ? 'bg-yellow-500 text-black hover:bg-yellow-600' 
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              Edit User
+            </button>
 
           </div>
           
@@ -1060,24 +1099,40 @@ const PaymentSystem = () => {
             </div>
           </Dialog>
 
-          <Dialog open={showRemoveUser} onClose={() => setShowRemoveUser(false)}>
+          <Dialog open={showEditUser} onClose={() => setShowEditUser(false)}>
             <div className="p-4">
-              <h2 className="text-lg font-semibold mb-2">Benutzer entfernen</h2>
-              <ul className="list-none space-y-2">
-                {users.map((user) => (
-                  <li key={user.id} className="flex items-center justify-between">
-                    <span>{user.name}</span>
-                    <button
-                      onClick={() => removeUser(user.id)}
-                      className="px-4 py-2 bg-red-500 text-white rounded"
-                    >
-                      Löschen
-                    </button>
-                  </li>
-            ))}
-            </ul>
-          </div>
-        </Dialog>
+              <h2 className="text-lg font-semibold mb-2">Benutzername bearbeiten</h2>
+              <input
+                type="text"
+                value={editUserName}
+                readOnly
+                placeholder="Neuer Benutzername"
+                className="w-full p-2 mb-4 border border-gray-300 rounded"
+              />
+              <TouchKeyboard 
+                onInput={setEditUserName}
+                onEnter={() => {
+                  if (editUserName.trim()) {
+                    editUser();
+                  }
+                }}
+              />
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  onClick={() => setShowEditUser(false)}
+                  className="px-4 py-2 bg-gray-300 rounded"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  onClick={editUser}
+                  className="px-4 py-2 bg-yellow-500 text-white rounded"
+                >
+                  Speichern
+                </button>
+              </div>
+            </div>
+          </Dialog>
         </div>
       )}
 
@@ -1385,8 +1440,8 @@ const PaymentSystem = () => {
       {/* Bills View */}
       {view === 'bills' && (
         <div>
-          <h2 className="text-3xl font-semibold mb-10 mr-5 ml-5">Abrechnungen</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 max-h-96 overflow-y-auto mr-5 ml-5">
+          <h2 className="text-2xl font-semibold mb-10 mr-5 ml-5">Abrechnungen</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3 max-h-96 overflow-y-auto mr-10 ml-4">
           {users.map((user) => (
             <div key={user.id} className="flex justify-between items-center p-4 bg-gray-200 rounded-lg mb-4">
               <span>{user.name}</span>
