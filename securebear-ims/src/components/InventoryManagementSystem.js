@@ -686,6 +686,9 @@ const PaymentSystem = () => {
     }
   };
   
+  const totalOpenBills = users
+    .filter(user => user.balance > 0)
+    .reduce((sum, user) => sum + user.balance, 0);
 
   const LogView = () => {
     if (!currentLogName) {
@@ -1137,7 +1140,7 @@ const PaymentSystem = () => {
       )}
 
 
-    {/* Drink View */}
+  {/* Drink View */}
   {view === 'drinks' && (
     <div>
       <h2 className="text-3xl font-semibold mb-10 mr-5 ml-5">Getränke</h2>
@@ -1440,7 +1443,10 @@ const PaymentSystem = () => {
       {/* Bills View */}
       {view === 'bills' && (
         <div>
-          <h2 className="text-2xl font-semibold mb-10 mr-5 ml-5">Abrechnungen</h2>
+          <h2 className="text-2xl font-semibold mb-5 mr-5 ml-5">Abrechnungen</h2>
+          <h3 className="text-xl font-medium ml-5 mb-4">
+            Gesamt offene Beträge: {totalOpenBills.toFixed(2)}€
+          </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3 max-h-96 overflow-y-auto mr-10 ml-4">
           {users.map((user) => (
             <div key={user.id} className="flex justify-between items-center p-4 bg-gray-200 rounded-lg mb-4">
